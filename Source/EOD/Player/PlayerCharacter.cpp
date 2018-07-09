@@ -11,6 +11,7 @@
 #include "Components/PlayerStatsComponent.h"
 
 #include "Engine/World.h"
+#include "TimerManager.h"
 #include "UnrealNetwork.h"
 #include "Engine/StreamableManager.h"
 #include "Camera/CameraComponent.h"
@@ -616,6 +617,20 @@ void APlayerCharacter::OnUsingSkill(uint32 SkillButtonIndex)
 	}
 	// End @development_only_code
 
+	if (SkillButtonIndex == 6)
+	{
+		FTimerHandle* HandlePtr = new FTimerHandle;
+		// TSharedPtr<FTimerHandle> HandlePtr = MakeShareable(new FTimerHandle);
+
+		FTimerDelegate NewDelegate;
+		NewDelegate.BindStatic(&APlayerCharacter::StaticTestFunction, HandlePtr, this);
+		// NewDelegate.BindUFunction(this, FName("LocalTestFunction"), THandle);
+		// NewDelegate.BindUFunction(this, FName("LocalTestFunction"), HandlePtr);
+		// NewDelegate.BindRaw(this, &APlayerCharacter::LocalTestFunction, HandlePtr);
+		// GetWorld()->GetTimerManager().SetTimer(THandle, this, &APlayerCharacter::LocalTestFunction, 2.f, true);
+		// GetWorld()->GetTimerManager().SetTimer(THandle, NewDelegate, 2.f, true);
+		GetWorld()->GetTimerManager().SetTimer(*HandlePtr, NewDelegate, 2.f, true);
+	}
 }
 
 float APlayerCharacter::GetPlayerControlRotationYaw()
@@ -819,4 +834,15 @@ void APlayerCharacter::Server_SetBlockMovementDirectionYaw_Implementation(float 
 bool APlayerCharacter::Server_SetBlockMovementDirectionYaw_Validate(float NewYaw)
 {
 	return true;
+}
+
+void APlayerCharacter::StaticTestFunction(FTimerHandle* THandle, APlayerCharacter* CharInstance)
+{
+	if (GEngine)
+	{
+		FString Message = FString("Called static test function");
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, *Message);
+	}
+	
+	CharInstance->GetWorld()->GetTimerManager().ClearTimer(*THandle);
 }

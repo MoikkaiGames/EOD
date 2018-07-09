@@ -281,6 +281,13 @@ public:
 
 	//~ End multiplayer code
 
+
+	// tests
+
+	// FTimerHandle THandle;
+
+	static void StaticTestFunction(FTimerHandle* THandle, APlayerCharacter* CharInstance);
+
 };
 
 template<uint32 SkillButtonIndex>
