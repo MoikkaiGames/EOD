@@ -838,11 +838,13 @@ bool APlayerCharacter::Server_SetBlockMovementDirectionYaw_Validate(float NewYaw
 
 void APlayerCharacter::StaticTestFunction(FTimerHandle* THandle, APlayerCharacter* CharInstance)
 {
+	float TimeElapsed = CharInstance->GetWorld()->GetTimerManager().GetTimerElapsed(*THandle);
+
 	if (GEngine)
 	{
-		FString Message = FString("Called static test function");
+		FString Message = FString("Total time elapsed: ") + FString::SanitizeFloat(TimeElapsed);
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, *Message);
 	}
 	
-	CharInstance->GetWorld()->GetTimerManager().ClearTimer(*THandle);
+	// CharInstance->GetWorld()->GetTimerManager().ClearTimer(*THandle);
 }
