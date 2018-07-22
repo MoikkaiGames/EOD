@@ -3,10 +3,30 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TimerManager.h"
 #include "UObject/NoExportTypes.h"
 #include "StatusEffect.generated.h"
 
 class ABaseCharacter;
+
+
+USTRUCT(BlueprintType)
+struct EOD_API FStatusTimerInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	
+	int CurrentStackLevel;
+
+	FTimerHandle* TimerHandle;
+
+	FStatusTimerInfo()
+	{
+		TimerHandle = nullptr;
+		CurrentStackLevel = 0;
+	}
+};
 
 /**
  * StatusEffectReactivationCondition is used to determine how status effect

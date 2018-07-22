@@ -33,9 +33,27 @@ public:
 
 	/** Called when the status effect is deactivated */
 	virtual void OnDeactivation() override;
+	
+	UPROPERTY(EditDefaultsOnly, Category = BaseInfo)
+	float BurnDuration;
+
+	UPROPERTY(EditDefaultsOnly, Category = BaseInfo)
+	float TickDuration;
 
 private:
+	
+	/** Map of burning characters and struct containing the info for timers handling the status effect */
+	static TMap<TWeakObjectPtr<ABaseCharacter>, FStatusTimerInfo> BurningCharactersMap;
 
+	void ActivateBurnStatus(TWeakObjectPtr<ABaseCharacter> TargetCharacter);
+	
+	void DeactivateBurnStatus(TWeakObjectPtr<ABaseCharacter> TargetCharacter);
+
+	void OnBurn(FStatusTimerInfo& TimerInfo);
+
+	void RemoveSingleStackOfBurn(ABaseCharacter* TargetCharacter);
+
+	void RemoveAllStacksOfBurn(ABaseCharacter* TargetCharacter);
 	
 	
 	
