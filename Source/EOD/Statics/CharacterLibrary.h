@@ -173,6 +173,50 @@ public:
 
 	// @todo Death animations
 
+	//~ @note Words like `JumpStart` and `JumpEnd` have been intentionally capitalized because they are animation montage section names
+
+	/** Contains animations for player JumpStart, JumpLoop, and JumpEnd */
+	UAnimMontage* AnimationMontage_Jump;
+	
+	/** Contains animations for ForwardDodge, BackwardDodge, LeftDodge, and RightDodge */
+	UAnimMontage* AnimationMontage_Dodge;
+	
+	/** Contains animations for:
+	 * FirstSwing, FirstSwingEnd
+	 * SecondSwing, SecondSwingEnd
+	 * ...
+	 * ForwardSwing, ForwardSwingEnd
+	 * BackwardSwing, BackwardSwingEnd
+	 * ...
+	 */
+	UAnimMontage* AnimationMontage_NormalAttacks;
+
+	//~ @note Add AnimationMontage_WeaponChange animations here
+	//~ @todo List montage section names for AnimationMontage_SpecialActions
+	UAnimMontage* AnimationMontage_SpecialActions;
+	
+	/**
+	 * Contains animations for instant skills.
+	 * Section name will be same as skill name
+	 */
+	UAnimMontage* AnimationMontage_Skills;
+	
+	/**
+	 * Contains animations for spells
+	 * Section name will be same as spell name
+	 */
+	UAnimMontage* AnimationMontage_Spells;
+	
+	//~ @todo documentation
+	UAnimMontage* AnimationMontage_SpecialMovement;
+	
+	//~ @todo List montage section names for AnimationMontage_CrowdControlEffects
+	/** Contains animations for crowd control effects like interrupted, frozen, etc. */
+	UAnimMontage* AnimationMontage_CrowdControlEffects;
+	
+	/** Contains animations for player flinching */
+	UAnimMontage* AnimationMontage_Flinch;
+
 };
 
 /** This struct contains info related to in-game class skills */
