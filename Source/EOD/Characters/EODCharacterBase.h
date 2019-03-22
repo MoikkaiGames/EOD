@@ -81,7 +81,7 @@ class EOD_API AEODCharacterBase : public ACharacter
 public:
 
 	// --------------------------------------
-	//	UE4 Method Overrides
+	//  UE4 Method Overrides
 	// --------------------------------------
 
 	/** Sets default values for this character's properties */
@@ -110,10 +110,8 @@ public:
 	/** Called when the Pawn is being restarted (usually by being possessed by a Controller). Called on both server and owning client. */
 	virtual void Restart() override;
 
-public:
-
 	// --------------------------------------
-	//	Combat
+	//  Combat
 	// --------------------------------------
 
 	/**
@@ -186,7 +184,7 @@ private:
 protected:
 
 	// --------------------------------------
-	//	Character Stats
+	//  Character Stats
 	// --------------------------------------
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character Stats|Constants")
@@ -221,6 +219,7 @@ public:
 	inline void SetCharacterStateAllowsRotation(bool bValue);
 
 protected:
+
 	/** [server + local] Sets the current character movement direction */
 	inline void SetCharacterMovementDirection(ECharMovementDirection NewDirection);
 
@@ -248,6 +247,7 @@ protected:
 	float DefaultWalkSpeedWhileBlocking;
 
 private:
+
 	/**
 	 * The direction character is trying to move relative to it's controller rotation
 	 * If the character is controlled by player, it is determined by the movement keys pressed by player
@@ -287,6 +287,7 @@ public:
 	inline void ZoomOutCamera();
 
 protected:
+
 	/** Determines whether the cached value of DesiredRotationYawFromAxisInput was updated this frame */
 	uint32 bDesiredRotationYawFromAxisInputUpdated : 1;
 
@@ -294,14 +295,80 @@ protected:
 	UPROPERTY(Transient)
 	float DesiredRotationYawFromAxisInput;
 
-	//~ @todo DEPRECATED remove
-	/** Determines whether guard key is pressed or not */
-	// UPROPERTY(Transient)
-	// uint32 bGuardKeyPressed : 1;
-
 private:
+
 	/** Calculates and returns rotation yaw from axis input */
 	inline float CalculateRotationYawFromAxisInput() const;
+
+public:
+
+	// --------------------------------------
+	//  Components
+	// --------------------------------------
+
+	const static FName CameraComponentName;
+
+	const static FName SpringArmComponentName;
+
+	const static FName GameplaySkillsComponentName;
+
+	const static FName CharacterStatsComponentName;
+
+	const static FName InteractionSphereComponentName;
+
+	inline void EnableInteractionSphere();
+
+	inline void DisableInteractionSphere();
+
+	FORCEINLINE USpringArmComponent* GetCameraBoomComponent() const { return CameraBoomComponent; }
+
+	FORCEINLINE UCameraComponent* GetCameraComponent() const { return CameraComponent; }
+
+	FORCEINLINE UGameplaySkillsComponent* GetGameplaySkillsComponent() const { return SkillManager; }
+
+	FORCEINLINE UStatsComponentBase* GetCharacterStatsComponent() const { return CharacterStatsComponent; }
+
+	FORCEINLINE USphereComponent* GetInteractionSphereComponent() const { return InteractionSphereComponent; }
+	
+protected:
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|Constants")
+	int32 CameraZoomRate;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|Constants")
+	int CameraArmMinimumLength;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|Constants")
+	int CameraArmMaximumLength;
+
+private:
+
+	/** Spring arm for camera */
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	USpringArmComponent* CameraBoomComponent;
+
+	/** Camera */
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UCameraComponent* CameraComponent;
+
+	/** StatsComp contains and manages the stats info of this character */
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UStatsComponentBase* CharacterStatsComponent;
+
+	//~ Skill bar component - manages skill bar (for player controlled character) and skills of character
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UGameplaySkillsComponent* SkillManager;
+
+	/** Sphere component used to detect interactives objects */
+	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	USphereComponent* InteractionSphereComponent;
+
+	/** Audio component for playing hit effect sounds */
+	UPROPERTY(Transient)
+	UAudioComponent* HitAudioComponent;
+
+
+
 
 
 public:
@@ -392,71 +459,7 @@ public:
 
 	/** Called when this character successfully mounts a rideable character */
 	void OnMountingRide(ARideBase* RideCharacter);
-
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Components
-public:
-	FORCEINLINE USpringArmComponent* GetCameraBoomComponent() const { return CameraBoomComponent; }
-
-	FORCEINLINE UCameraComponent* GetCameraComponent() const { return CameraComponent; }
-
-	FORCEINLINE UGameplaySkillsComponent* GetGameplaySkillsComponent() const { return SkillManager; }
-
-	FORCEINLINE UStatsComponentBase* GetCharacterStatsComponent() const { return CharacterStatsComponent; }
-
-	FORCEINLINE USphereComponent* GetInteractionSphereComponent() const { return InteractionSphereComponent; }
-
-	inline void EnableInteractionSphere();
-
-	inline void DisableInteractionSphere();
-
-	static FName CameraComponentName;
-
-	static FName SpringArmComponentName;
-
-	static FName GameplaySkillsComponentName;
-
-	static FName CharacterStatsComponentName;
-
-	static FName InteractionSphereComponentName;
-
-protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|Constants")
-	int32 CameraZoomRate;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|Constants")
-	int CameraArmMinimumLength;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera|Constants")
-	int CameraArmMaximumLength;
-
-private:
-	/** Spring arm for camera */
-	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* CameraBoomComponent;
-
-	/** Camera */
-	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* CameraComponent;
-
-	/** StatsComp contains and manages the stats info of this character */
-	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UStatsComponentBase* CharacterStatsComponent;
-
-	//~ Skill bar component - manages skill bar (for player controlled character) and skills of character
-	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UGameplaySkillsComponent* SkillManager;
-
-	/** Sphere component used to detect interactives objects */
-	UPROPERTY(Category = Character, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	USphereComponent* InteractionSphereComponent;
-
-	/** Audio component for playing hit effect sounds */
-	UPROPERTY(Transient)
-	UAudioComponent* HitAudioComponent;
-
-
+	
 public:
 
 	// --------------------------------------
@@ -629,11 +632,13 @@ public:
 	virtual void OnReleasedBackward();
 
 public:
+	//~ @todo
 	/** Returns true if character is alive */
-	FORCEINLINE bool IsAlive() const;
+	FORCEINLINE bool IsAlive() const { return true; }
 
+	//~ @todo
 	/** Returns true if character is dead */
-	FORCEINLINE bool IsDead() const;
+	FORCEINLINE bool IsDead() const { return false; }
 
 	/** Returns true if character is dead */
 	UFUNCTION(BlueprintPure, Category = CharacterStatus, meta = (DisplayName = "Is Dead"))
@@ -714,26 +719,33 @@ public:
 	/** Returns true if character can use a particular skill */
 	virtual bool CanUseSkill(FSkillTableRow* Skill);
 	
+	//~ @todo
 	/** Returns true if character can flinch */
-	FORCEINLINE bool CanFlinch() const;
+	FORCEINLINE bool CanFlinch() const { return true; }
 
+	//~ @todo
 	/** Returns true if character can stun */
-	FORCEINLINE bool CanStun() const;
+	FORCEINLINE bool CanStun() const { return false; }
 
+	//~ @todo
 	/** Returns true if character can get knocked down */
-	FORCEINLINE bool CanKnockdown() const;
+	FORCEINLINE bool CanKnockdown() const { return false; }
 
+	//~ @todo
 	/** Returns true if character can get knocked back */
-	FORCEINLINE bool CanKnockback() const;
+	FORCEINLINE bool CanKnockback() const { return false; }
 
+	//~ @todo
 	/** Returns true if character can be frozed/crystalized */
-	FORCEINLINE bool CanFreeze() const;
+	FORCEINLINE bool CanFreeze() const { return false; }
 
+	//~ @todo
 	/** Returns true if character can be interrupted */
-	FORCEINLINE bool CanInterrupt() const;
+	FORCEINLINE bool CanInterrupt() const { return false; }
 
+	//~ @todo
 	/** Returns true if this character requires healing (low on HP) */
-	FORCEINLINE bool NeedsHealing() const;
+	FORCEINLINE bool NeedsHealing() const { return false; }
 
 	/** Returns true if this character requires healing (low on HP) */
 	UFUNCTION(BlueprintPure, Category = CharacterStatus, meta = (DisplayName = "Needs Healing"))
@@ -1486,6 +1498,7 @@ inline void AEODCharacterBase::ZoomOutCamera()
 	}
 }
 
+/*
 FORCEINLINE bool AEODCharacterBase::IsAlive() const
 {
 	return IsValid(CharacterStatsComponent) ? CharacterStatsComponent->GetCurrentHealth() > 0 : true;
@@ -1495,6 +1508,7 @@ FORCEINLINE bool AEODCharacterBase::IsDead() const
 {
 	return IsValid(CharacterStatsComponent) ? CharacterStatsComponent->GetCurrentHealth() <= 0 : false;
 }
+*/
 
 FORCEINLINE bool AEODCharacterBase::IsIdle() const
 {
@@ -1562,6 +1576,7 @@ FORCEINLINE bool AEODCharacterBase::HasBeenHit() const
 	return CharacterState == ECharacterState::GotHit;
 }
 
+/*
 FORCEINLINE bool AEODCharacterBase::CanFlinch() const
 {
 	if (IsValid(CharacterStatsComponent))
@@ -1620,6 +1635,7 @@ FORCEINLINE bool AEODCharacterBase::NeedsHealing() const
 {
 	return IsValid(CharacterStatsComponent) ? CharacterStatsComponent->IsLowOnHealth() : false;
 }
+*/
 
 FORCEINLINE void AEODCharacterBase::SetOffTargetSwitch()
 {

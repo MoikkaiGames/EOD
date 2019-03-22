@@ -10,8 +10,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "HumanCharacter.generated.h"
 
-
 class UAudioComponent;
+class APrimaryWeapon;
+class ASecondaryWeapon;
 class USkeletalMeshComponent;
 
 /**
@@ -47,17 +48,17 @@ public:
 	virtual void Destroyed() override;
 
 	// --------------------------------------
-	//	Save/Load System
+	//  Save/Load System
 	// --------------------------------------
 
 	/** Saves current player state */
 	virtual void SaveCharacterState() override;
 
 	// --------------------------------------
-	//	Components
+	//  Components
 	// --------------------------------------
 
-	static FName HairComponentName;
+	const static FName HairComponentName;
 
 	static FName HatItemComponentName;
 
@@ -137,14 +138,18 @@ public:
 	//	Weapon System
 	// --------------------------------------
 
-	/** Returns the weapon type of primary weapon */
-	FORCEINLINE EWeaponType GetEquippedWeaponType() const;
+	/** Returns the type of weapon currently equipped by this character */
+	virtual EWeaponType GetEquippedWeaponType() const override;
 
 protected:
 
 	/** An actor for primary weapon equipped by the player */
 	UPROPERTY(Transient)
 	APrimaryWeapon* PrimaryWeapon;
+
+	/** An actor for secondary weapon equipped by the player */
+	UPROPERTY(Transient)
+	ASecondaryWeapon* SecondaryWeapon;
 
 public:
 
@@ -169,13 +174,13 @@ private:
 	//	Input Handling
 	// --------------------------------------
 
-	void OnPressedForward();
+	virtual void OnPressedForward() override;
 
-	void OnPressedBackward();
+	virtual void OnPressedBackward() override;
 
-	void OnReleasedForward();
+	virtual void OnReleasedForward() override;
 
-	void OnReleasedBackward();
+	virtual void OnReleasedBackward() override;
 
 	bool bForwardPressed;
 
@@ -230,9 +235,4 @@ inline FPlayerAnimationReferencesTableRow* AHumanCharacter::GetActiveAnimationRe
 		return UnequippedWeaponAnimationReferences;
 	}
 	return EquippedWeaponAnimationReferences;
-}
-
-EWeaponType AHumanCharacter::GetEquippedWeaponType() const
-{
-	return PrimaryWeapon ? PrimaryWeapon->GetWeaponType() : EWeaponType::None;
 }

@@ -32,11 +32,11 @@
  */
 DECLARE_CYCLE_STAT(TEXT("EOD ChararaterTick"), STAT_EODCharacterTick, STATGROUP_EOD);
 
-FName AEODCharacterBase::CameraComponentName(TEXT("Camera"));
-FName AEODCharacterBase::SpringArmComponentName(TEXT("Camera Boom"));
-FName AEODCharacterBase::CharacterStatsComponentName(TEXT("Character Stats"));
-FName AEODCharacterBase::GameplaySkillsComponentName(TEXT("Skill Manager"));
-FName AEODCharacterBase::InteractionSphereComponentName(TEXT("Interaction Sphere"));
+const FName AEODCharacterBase::CameraComponentName(TEXT("Camera"));
+const FName AEODCharacterBase::SpringArmComponentName(TEXT("Camera Boom"));
+const FName AEODCharacterBase::CharacterStatsComponentName(TEXT("Character Stats"));
+const FName AEODCharacterBase::GameplaySkillsComponentName(TEXT("Skill Manager"));
+const FName AEODCharacterBase::InteractionSphereComponentName(TEXT("Interaction Sphere"));
 
 AEODCharacterBase::AEODCharacterBase(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer.SetDefaultSubobjectClass<UEODCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))

@@ -525,9 +525,6 @@ private:
 	// UPROPERTY(Transient)
 	// APrimaryWeapon* PrimaryWeapon;
 
-	/** An actor for secondary weapon equipped by the player */
-	UPROPERTY(Transient)
-	ASecondaryWeapon* SecondaryWeapon;
 
 	FORCEINLINE void SetPrimaryWeaponID(FName NewWeaponID);
 

@@ -6,7 +6,7 @@
 
 #include "GameFramework/PlayerController.h"
 
-FName AHumanCharacter::HairComponentName(TEXT("Hair"));
+const FName AHumanCharacter::HairComponentName(TEXT("Hair"));
 FName AHumanCharacter::HatItemComponentName(TEXT("Hat Item"));
 FName AHumanCharacter::FaceItemComponentName(TEXT("Face Item"));
 FName AHumanCharacter::ChestComponentName(TEXT("Chest"));
@@ -32,8 +32,6 @@ AHumanCharacter::AHumanCharacter(const FObjectInitializer& ObjectInitializer) : 
 	Hands				= CreateNewArmorComponent(AHumanCharacter::HandsComponentName, ObjectInitializer);
 	Legs				= CreateNewArmorComponent(AHumanCharacter::LegsComponentName, ObjectInitializer);
 	Feet				= CreateNewArmorComponent(AHumanCharacter::FeetComponentName, ObjectInitializer);
-
-	bUseControllerRotationYaw = false;
 
 }
 
@@ -78,6 +76,11 @@ USkeletalMeshComponent* AHumanCharacter::CreateNewArmorComponent(const FName Nam
 		Sk->bUseAttachParentBound = true;
 	}
 	return Sk;
+}
+
+EWeaponType AHumanCharacter::GetEquippedWeaponType() const
+{
+	return PrimaryWeapon ? PrimaryWeapon->GetWeaponType() : EWeaponType::None;
 }
 
 bool AHumanCharacter::CanDodge() const
