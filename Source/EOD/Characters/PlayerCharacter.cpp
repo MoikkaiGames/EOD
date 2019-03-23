@@ -816,6 +816,17 @@ void APlayerCharacter::SetActiveWeaponSlotIndex(int32 NewSlotIndex)
 
 void APlayerCharacter::StartDodge()
 {
+	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
+	UAnimMontage* DodgeMontage = AnimRef ? AnimRef->Dodge.Get() : nullptr;
+	check(DodgeMontage);
+
+	if (Controller && Controller->IsLocalPlayerController())
+	{
+
+	}
+
+
+	/*
 	UAnimMontage* DodgeMontage = GetActiveAnimationReferences() ? GetActiveAnimationReferences()->Dodge.Get() : nullptr;
 
 	// StartDodge() must always be called after calling CanDodge(), which checks whether the animation references are valid or not.
@@ -874,6 +885,7 @@ void APlayerCharacter::StartDodge()
 	}
 	PlayAnimationMontage(DodgeMontage, SectionToPlay, ECharacterState::Dodging);
 	TriggeriFrames(DodgeImmunityDuration, DodgeImmunityTriggerDelay);
+	*/
 }
 
 void APlayerCharacter::OnDodge()
@@ -1169,6 +1181,7 @@ void APlayerCharacter::DoNormalAttack()
 
 void APlayerCharacter::OnToggleAutoRun()
 {
+	/*
 	if (GetCharacterState() == ECharacterState::AutoRun)
 	{
 		DisableAutoRun();
@@ -1177,6 +1190,7 @@ void APlayerCharacter::OnToggleAutoRun()
 	{
 		EnableAutoRun();
 	}
+	*/
 }
 
 void APlayerCharacter::DisableForwardPressed()

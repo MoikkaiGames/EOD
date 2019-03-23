@@ -68,6 +68,23 @@ DECLARE_MULTICAST_DELEGATE_FourParams(FOnWeaponChangedDelegate,
 									  FName,
 									  FWeaponTableRow*);
 
+USTRUCT(BlueprintType)
+struct EOD_API FCharacterStateRepInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	ECharacterState ServerState;
+
+	UPROPERTY()
+	uint8 SubStateIndex;
+
+	FCharacterStateRepInfo()
+	{
+		ServerState = ECharacterState::IdleWalkRun;
+		SubState = NAME_None;
+	}
+};
 
 /**
  * An abstract base class to handle the behavior of in-game characters.
@@ -109,6 +126,65 @@ public:
 
 	/** Called when the Pawn is being restarted (usually by being possessed by a Controller). Called on both server and owning client. */
 	virtual void Restart() override;
+
+	// --------------------------------------
+	//  Character State
+	// --------------------------------------
+
+	/** Character state on server */
+	UPROPERTY(ReplicatedUsing = OnRep_ServerCharacterState)
+	ECharacterState Server_CharacterState;
+
+	/** Character state on local client */
+	UPROPERTY()
+	ECharacterState Client_CharacterState;
+
+	/** Determines whether the local state is yet to change to match server state */
+	UPROPERTY()
+	uint32 bPendingLocalStateChange : 1;
+
+	/** A list of all the states that the character must transition through locally to match the server state */
+	TQueue<ECharacterState> PendingStates;
+
+	/** Update character states */
+	virtual void UpdateCharacterState(float DeltaTime);
+
+	/** Returns true if character can dodge */
+	virtual bool CanDodge() const;
+
+	/** Start dodging */
+	virtual void StartDodge();
+
+	/** Cancel dodging */
+	virtual void CancelDodge();
+
+	/** Finish dodging */
+	virtual void FinishDodge();
+
+	FORCEINLINE void SetCharacterState(const ECharacterState NewState)
+	{
+		CharacterState = NewState;
+		// Character state is no longer replicated
+		/*
+		if (Role < ROLE_Authority)
+		{
+			Server_SetCharacterState(NewState);
+		}
+		*/
+	}
+
+protected:
+
+	/** Updates character movement every frame */
+	virtual void UpdateIdleWalkRunState(float DeltaTime);
+
+	// void OwnerChangeCharacterState()
+
+
+	// void SetCharacterState(const ECharacterState NewState);
+
+
+public:
 
 	// --------------------------------------
 	//  Combat
@@ -217,6 +293,9 @@ public:
 
 	/** [local] Sets whether current character allows rotation */
 	inline void SetCharacterStateAllowsRotation(bool bValue);
+
+	UPROPERTY(Replicated)
+	float MovementSpeedModifier;
 
 protected:
 
@@ -367,9 +446,14 @@ private:
 	UPROPERTY(Transient)
 	UAudioComponent* HitAudioComponent;
 
+public:
 
+	// --------------------------------------
+	//	Animations
+	// --------------------------------------
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
+	FCharacterAnimations DefaultAnimations;
 
 public:
 
@@ -441,8 +525,6 @@ protected:
 	/** Updates character guard state every frame if the character wants to guard */
 	virtual void UpdateGuardState(float DeltaTime);
 
-	/** Updates character movement every frame */
-	virtual void UpdateMovementState(float DeltaTime);
 
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -467,20 +549,9 @@ public:
 	// --------------------------------------
 
 	/** Character state determines the current action character is doing */
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_CharacterState)
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_ServerCharacterState)
 	ECharacterState CharacterState;
 
-	/** Returns true if character can dodge */
-	virtual bool CanDodge() const;
-
-	/** Start dodging */
-	virtual void StartDodge();
-
-	/** Cancel dodging */
-	virtual void CancelDodge();
-
-	/** Finish dodging */
-	virtual void FinishDodge();
 
 	// --------------------------------------
 	//	Character Constants
@@ -900,19 +971,6 @@ public:
 	bool BP_IsInCombat() const;
 
 	/** Sets current state of character */
-	FORCEINLINE void SetCharacterState(const ECharacterState NewState)
-	{
-		CharacterState = NewState;
-		// Character state is no longer replicated
-		/*
-		if (Role < ROLE_Authority)
-		{
-			Server_SetCharacterState(NewState);
-		}
-		*/
-	}
-
-	/** Sets current state of character */
 	UFUNCTION(BlueprintCallable, Category = "EOD Character", meta = (DisplayName = "Set Character State"))
 	void BP_SetCharacterState(const ECharacterState NewState);
 
@@ -1180,21 +1238,29 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////
 	// Network
 private:
+
+	// --------------------------------------
+	//  Network
+	// --------------------------------------
+
+	UFUNCTION()
+	void OnRep_ServerCharacterState(ECharacterState LastState);
+
+
+
+
 	UFUNCTION()
 	void OnRep_WeaponSheathed();
 
 	UFUNCTION()
 	void OnRep_GuardActive();
 
-	// DEPRECATED
-	UFUNCTION()
-	void OnRep_CharacterState(ECharacterState OldState);
-
-	UFUNCTION()
-	void OnRep_ServerCharacterState(FName LastState);
 
 	// UFUNCTION()
 	// void OnRep_CurrentRide(ARideBase* OldRide);
+
+	// UFUNCTION(Server, Reliable, WithValidation)
+
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SpawnAndMountRideableCharacter(TSubclassOf<ARideBase> RideCharacterClass);
@@ -1347,10 +1413,13 @@ inline void AEODCharacterBase::SetCharacterStateAllowsRotation(bool bValue)
 
 inline void AEODCharacterBase::SetCharacterMovementDirection(ECharMovementDirection NewDirection)
 {
-	CharacterMovementDirection = NewDirection;
-	if (Role < ROLE_Authority)
+	if (CharacterMovementDirection != NewDirection)
 	{
-		Server_SetCharMovementDir(NewDirection);
+		CharacterMovementDirection = NewDirection;
+		if (Role < ROLE_Authority)
+		{
+			Server_SetCharMovementDir(NewDirection);
+		}
 	}
 }
 

@@ -157,6 +157,7 @@ public:
 
 	FORCEINLINE bool IsSwitchingWeapon() const;
 
+	//~ @todo remove
 	/** Returns true if player is on auto run */
 	FORCEINLINE bool IsAutoRunning() const;
 
@@ -712,8 +713,10 @@ private:
 	/** Enable or disable auto run */
 	void OnToggleAutoRun();
 
+	//~ @todo remove
 	inline void EnableAutoRun();
 
+	//~ @todo remove
 	inline void DisableAutoRun();
 
 	void DisableForwardPressed();
@@ -794,7 +797,7 @@ inline void APlayerCharacter::ReleasedSkillKey()
 
 inline void APlayerCharacter::EnableAutoRun()
 {
-	SetCharacterState(ECharacterState::AutoRun);
+	// SetCharacterState(ECharacterState::AutoRun);
 	SetUseControllerRotationYaw(true);
 }
 
@@ -941,7 +944,8 @@ FORCEINLINE bool APlayerCharacter::IsSwitchingWeapon() const
 
 FORCEINLINE bool APlayerCharacter::IsAutoRunning() const
 {
-	return GetCharacterState() == ECharacterState::AutoRun;
+	return false;
+	// return GetCharacterState() == ECharacterState::AutoRun;
 }
 
 FORCEINLINE bool APlayerCharacter::IsPrimaryWeaponEquippped() const

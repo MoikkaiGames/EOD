@@ -82,7 +82,6 @@ UENUM(BlueprintType)
 enum class ECharacterState : uint8
 {
 	IdleWalkRun,
-	AutoRun,
 	SwitchingWeapon,
 	Jumping,
 	Dodging,
@@ -200,6 +199,49 @@ struct EOD_API FSkillState
 	}
 
 };
+
+USTRUCT(BlueprintType)
+struct EOD_API FCharacterAnimations
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Animation for when this character flinches on getting hit */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* Flinch;
+	
+	/** Animation for when this character gets knocked down */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* KnockedDown;
+	
+	/** Animation for when this character gets interrupted */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* Interrupted;
+
+	/** Animation for when this character gets stunned */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* Stunned;
+
+	/** Animation for when this character's attack on an enemy gets deflected by the enemy */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* AttackDeflected;
+	
+	/** Animation for when this character blocks an incoming (Using played on top of guard animations) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* BlockAttack;
+
+	/** Jump animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* Jump;
+	
+	/** Dodge animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* Dodge;
+	
+	/** Dodge animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UAnimMontage* Die;
+};
+
 
 /**
  * This struct contains the references for player animations based on equipped weapon type

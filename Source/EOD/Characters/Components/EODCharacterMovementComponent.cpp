@@ -2,6 +2,7 @@
 
 #include "EOD/Characters/Components/EODCharacterMovementComponent.h"
 #include "EOD/Core/EOD.h"
+#include "EODCharacterBase.h"
 
 #include "UnrealNetwork.h"
 #include "GameFramework/PlayerController.h"
@@ -98,6 +99,15 @@ void UEODCharacterMovementComponent::ServerMoveDual_Implementation(float TimeSta
 		CharacterOwner->GetMesh()->ConditionallyDispatchQueuedAnimEvents();
 	}
 	ServerMove_Implementation(TimeStamp, InAccel, ClientLoc, NewFlags, ClientRoll, View, ClientMovementBase, ClientBaseBoneName, ClientMovementMode);
+}
+
+float UEODCharacterMovementComponent::GetMaxSpeed() const
+{
+	AEODCharacterBase* EODOwner = Cast<AEODCharacterBase>(PawnOwner);
+	//~ Apply movement speed modifier
+	float MaxSpeed = Super::GetMaxSpeed();
+	MaxSpeed = EODOwner ? (MaxSpeed * EODOwner->MovementSpeedModifier) : MaxSpeed;
+	return MaxSpeed;
 }
 
 void UEODCharacterMovementComponent::Server_SetDesiredCustomRotation_Implementation(const FRotator& NewRotation)

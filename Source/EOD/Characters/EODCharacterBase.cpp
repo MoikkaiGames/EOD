@@ -101,6 +101,11 @@ AEODCharacterBase::AEODCharacterBase(const FObjectInitializer& ObjectInitializer
 	Faction = EFaction::Player;
 
 
+	Server_CharacterState = ECharacterState::IdleWalkRun;
+	Client_CharacterState = ECharacterState::IdleWalkRun;
+
+	MovementSpeedModifier = 1.f;
+
 }
 
 void AEODCharacterBase::Tick(float DeltaTime)
@@ -111,6 +116,10 @@ void AEODCharacterBase::Tick(float DeltaTime)
 
 	ResetTickDependentData();
 
+	UpdateCharacterState(DeltaTime);
+
+
+	/*
 	if (Controller && Controller->IsLocalPlayerController())
 	{
 		// Update guard state only if either the character wants to guard or if character guard is active
@@ -140,48 +149,6 @@ void AEODCharacterBase::Tick(float DeltaTime)
 		UpdateMovement(DeltaTime);
 		UpdateRotation(DeltaTime);
 	}
-
-	/*
-	if (GetController() && GetController()->IsLocalPlayerController())
-	{
-		// If block key is pressed but the character is not blocking
-		if (bGuardKeyPressed && !IsGuardActive() && CanGuardAgainstAttacks())
-		{
-			ActivateGuard();
-		}
-		// If block is not pressed but character is blocking
-		else if (!bGuardKeyPressed && IsGuardActive())
-		{
-			DeactivateGuard();
-		}
-
-		if (bNormalAttackKeyPressed && !IsNormalAttacking() && CanNormalAttack())
-		{
-			StartNormalAttack();
-		}
-		else if (bNormalAttackKeyPressed && IsNormalAttacking())
-		{
-			UpdateNormalAttackState(DeltaTime);
-		}
-
-		if (GetCharacterMovement()->IsFalling() && bCharacterStateAllowsMovement)
-		{
-			SetCharacterStateAllowsMovement(false);
-		}
-
-		// If the character is either idle or moving, or is in a state that allows movement except guard
-		if (IsIdleOrMoving() || (bCharacterStateAllowsMovement && !IsGuardActive()))
-		{
-			UpdatePCTryingToMove();
-			UpdateCharacterMovementDirection();
-			InitiateRotationToYawFromAxisInput();
-			UpdateMovementState(DeltaTime);
-		}
-		else if (IsGuardActive())
-		{
-			UpdateGuardState(DeltaTime);
-		}
-	}
 	*/
 }
 
@@ -190,6 +157,7 @@ void AEODCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AEODCharacterBase, CurrentRide);
+	DOREPLIFETIME(AEODCharacterBase, MovementSpeedModifier);
 
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bIsRunning, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bGuardActive, COND_SkipOwner);
@@ -246,6 +214,45 @@ void AEODCharacterBase::Restart()
 
 	// Intentional additional call to BindUIDelegates (another in BeginPlay())
 	BindUIDelegates();
+}
+
+void AEODCharacterBase::UpdateCharacterState(float DeltaTime)
+{
+	// Update client state
+	switch (Client_CharacterState)
+	{
+	case ECharacterState::IdleWalkRun:
+		UpdateIdleWalkRunState(DeltaTime);
+		break;
+	case ECharacterState::SwitchingWeapon:
+		break;
+	case ECharacterState::Jumping:
+		break;
+	case ECharacterState::Dodging:
+		break;
+	case ECharacterState::Blocking:
+		break;
+	case ECharacterState::Attacking:
+		break;
+	case ECharacterState::Looting:
+		break;
+	case ECharacterState::SpecialAction:
+		break;
+	case ECharacterState::Interacting:
+		break;
+	case ECharacterState::UsingActiveSkill:
+		break;
+	case ECharacterState::CastingSpell:
+		break;
+	case ECharacterState::SpecialMovement:
+		break;
+	case ECharacterState::GotHit:
+		break;
+	case ECharacterState::Dead:
+		break;
+	default:
+		break;
+	}
 }
 
 float AEODCharacterBase::BP_GetRotationYawFromAxisInput()
@@ -670,12 +677,8 @@ void AEODCharacterBase::OnRep_GuardActive()
 	}
 }
 
-void AEODCharacterBase::OnRep_CharacterState(ECharacterState OldState)
-{
-	//~ @todo : Cleanup old state
-}
-
-void AEODCharacterBase::OnRep_ServerCharacterState(FName LastState)
+//~ @todo
+void AEODCharacterBase::OnRep_ServerCharacterState(ECharacterState LastState)
 {
 	
 }
@@ -1007,36 +1010,27 @@ void AEODCharacterBase::OnReleasedBackward()
 {
 }
 
-void AEODCharacterBase::UpdateMovementState(float DeltaTime)
+void AEODCharacterBase::UpdateIdleWalkRunState(float DeltaTime)
 {
-	if (ForwardAxisValue < 0)
+	if (Controller && Controller->IsLocalPlayerController())
 	{
-		float Speed = IsValid(GetCharacterStatsComponent()) ? (DefaultWalkSpeed * GetCharacterStatsComponent()->GetMovementSpeedModifier()) * 5 / 16 : DefaultWalkSpeed * 5 / 16;
-
-		// float Speed = (DefaultWalkSpeed * GetCharacterStatsComponent()->GetMovementSpeedModifier() * 5) / 16;
-		if (GetCharacterMovement()->MaxWalkSpeed != Speed)
+		if (ForwardAxisValue < 0)
 		{
-			SetWalkSpeed(Speed);
+			SetWalkSpeed(DefaultWalkSpeed * 5.f / 16.f);
 		}
-	}
-	else
-	{
-		float Speed = IsValid(GetCharacterStatsComponent()) ? DefaultWalkSpeed * GetCharacterStatsComponent()->GetMovementSpeedModifier() : DefaultWalkSpeed;
-		// float Speed = DefaultWalkSpeed * GetCharacterStatsComponent()->GetMovementSpeedModifier();
-		if (GetCharacterMovement()->MaxWalkSpeed != Speed)
+		else
 		{
-			SetWalkSpeed(Speed);
+			SetWalkSpeed(DefaultWalkSpeed);
 		}
-	}
 
-	//~ @old_code
-	/*
-	float DesiredRotationYaw = GetRotationYawFromAxisInput();
-	if (!FMath::IsNearlyEqual(DesiredRotationYaw, GetActorRotation().Yaw, 1e-3f))
-	{
-		DeltaRotateCharacterToDesiredYaw(DesiredRotationYaw, DeltaTime);
+		FRotator DesiredRotation = FRotator(0.f, GetRotationYawFromAxisInput(), 0.f);
+		UEODCharacterMovementComponent* MoveComp = Cast<UEODCharacterMovementComponent>(GetCharacterMovement());
+		if (MoveComp)
+		{
+			MoveComp->SetDesiredCustomRotation(DesiredRotation);
+		}
+		UpdateCharacterMovementDirection();
 	}
-	*/
 }
 
 void AEODCharacterBase::SpawnAndMountRideableCharacter(TSubclassOf<ARideBase> RideCharacterClass)

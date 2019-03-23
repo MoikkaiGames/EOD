@@ -563,7 +563,6 @@ void AEODPlayerController::OnPressingEscapeKey()
 
 void AEODPlayerController::OnPressingSkillKey(const int32 SkillKeyIndex)
 {
-
 	if (IsValid(EODCharacter) && IsValid(EODCharacter->GetGameplaySkillsComponent()))
 	{
 		EODCharacter->GetGameplaySkillsComponent()->OnPressingSkillKey(SkillKeyIndex);
@@ -612,14 +611,6 @@ void AEODPlayerController::Server_OnSuccessfulDodge_Implementation()
 	check(StatsComponent);
 	int32 DodgeCost = DodgeStaminaCost * StatsComponent->GetStaminaConsumptionModifier();
 	StatsComponent->ModifyCurrentStamina(-DodgeCost);
-
-	/*
-	if (IsValid(EODCharacter) && IsValid(EODCharacter->GetCharacterStatsComponent()))
-	{
-		int32 DodgeCost = DodgeStaminaCost * EODCharacter->GetCharacterStatsComponent()->GetStaminaConsumptionModifier();
-		EODCharacter->GetCharacterStatsComponent()->ModifyCurrentStamina(-DodgeCost);
-	}
-	*/
 }
 
 bool AEODPlayerController::Server_OnSuccessfulDodge_Validate()

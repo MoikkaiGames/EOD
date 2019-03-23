@@ -18,6 +18,11 @@ class EOD_API UEODCharacterMovementComponent : public UCharacterMovementComponen
 	GENERATED_BODY()
 	
 public:
+
+	// --------------------------------------
+	//  UE4 Method Overrides
+	// --------------------------------------
+
 	UEODCharacterMovementComponent(const FObjectInitializer& ObjectInitializer);
 
 	/** Sets up property replication */
@@ -41,10 +46,12 @@ public:
 		FName ClientBaseBoneName,
 		uint8 ClientMovementMode) override;
 
+	virtual float GetMaxSpeed() const override;
 
-	////////////////////////////////////////////////////////////////////////////////
-	// Rotation
-public:
+	// --------------------------------------
+	//  Rotation
+	// --------------------------------------
+
 	FORCEINLINE FRotator GetDesiredCustomRotation() const
 	{
 		return DesiredCustomRotation;
@@ -53,6 +60,7 @@ public:
 	inline void SetDesiredCustomRotation(const FRotator& NewRotation);
 
 protected:
+
 	/**
 	 * Desired rotation of pawn owner. The character owner will always try to rotate smoothly to this DesiredCustomRotationYaw unless the 
 	 * rotation behavior is overriden by setting 'bOrientRotationToMovement' or 'bUseControllerDesiredRotation' to true.
@@ -60,10 +68,12 @@ protected:
 	UPROPERTY(Replicated)
 	FRotator DesiredCustomRotation;
 
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Network
 private:
+
+	// --------------------------------------
+	//  Network
+	// --------------------------------------
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetDesiredCustomRotation(const FRotator& NewRotation);
 

@@ -48,6 +48,22 @@ public:
 	virtual void Destroyed() override;
 
 	// --------------------------------------
+	//  Character State
+	// --------------------------------------
+
+	/** Returns true if character can dodge */
+	virtual bool CanDodge() const override;
+
+	/** Start dodging */
+	virtual void StartDodge() override;
+
+	virtual void FinishDodge() override;
+
+	virtual void EnableCharacterGuard() override;
+
+	virtual void DisableCharacterGuard() override;
+
+	// --------------------------------------
 	//  Save/Load System
 	// --------------------------------------
 
@@ -150,23 +166,6 @@ protected:
 	/** An actor for secondary weapon equipped by the player */
 	UPROPERTY(Transient)
 	ASecondaryWeapon* SecondaryWeapon;
-
-public:
-
-	// --------------------------------------
-	//	Character States
-	// --------------------------------------
-
-	/** Returns true if character can dodge */
-	virtual bool CanDodge() const;
-
-	virtual void StartDodge() override;
-
-	virtual void FinishDodge() override;
-
-	virtual void EnableCharacterGuard() override;
-
-	virtual void DisableCharacterGuard() override;
 
 private:
 
