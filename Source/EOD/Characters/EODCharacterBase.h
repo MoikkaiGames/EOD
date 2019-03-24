@@ -165,6 +165,9 @@ public:
 	/** Update character states */
 	virtual void UpdateCharacterState(float DeltaTime);
 
+	/** Reset character state : usually sets state variables to default values and puts character in IdleWalkRun state */
+	virtual void ResetState();
+
 	/** Returns true if character can dodge */
 	virtual bool CanDodge() const;
 
@@ -177,19 +180,32 @@ public:
 	/** Finish dodging */
 	virtual void FinishDodge();
 
-	/** Reset state usually sets state variables to default values and puts character in IdleWalkRun state */
-	virtual void ResetState();
+	/** Returns true if character can guard against incoming attacks */
+	virtual bool CanGuardAgainstAttacks() const;
 
+	/** Enter guard/block state */
 	virtual void StartBlockingAttacks();
 
+	/** Leave guard/block state */
 	virtual void StopBlockingAttacks();
 
 	/** Updates character guard state every frame if the character wants to guard */
 	virtual void UpdateBlockState(float DeltaTime);
 
+	/** Returns true if character can jump */
+	virtual bool CanJump() const;
+
+	/** Enter jump/fall state */
+	virtual void StartJumping();
+
+	/** Leave jump/fall state */
+	virtual void StopJumping();
+
+	/** Updates character fall state every frame if the character is falling */
+	virtual void UpdateFallState(float DeltaTime);
+
+	/** [server + client] Set and replicate character state info over network */
 	void SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
-
-
 
 public:
 
@@ -232,6 +248,13 @@ public:
 	/** Returns the type of weapon currently equipped by this character */
 	virtual EWeaponType GetEquippedWeaponType() const { return EWeaponType::None; }
 
+	//~ @todo change 'StartBlockingDamage' and 'StopBlockingDamage' methods to ignore methods calls from client
+	/** [client + server] Start blocking any incoming (blockable) damage on server */
+	inline void StartBlockingDamage(float Delay = 0.2f);
+
+	/** [client + server] Stop blocking any incoming (blockable) damage on server */
+	inline void StopBlockingDamage();
+
 protected:
 
 	/** Enables immunity frames for a given duration */
@@ -254,9 +277,6 @@ protected:
 	UFUNCTION()
 	virtual void DisableCharacterGuard();
 
-	inline void StartBlockingDamage(float Delay = 0.2f);
-
-	inline void StopBlockingDamage();
 
 	/** Determines whether character is currently engaged in combat or not */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Combat System")
@@ -548,9 +568,6 @@ protected:
 	/** Updates character movement every frame */
 	virtual void UpdateMovement(float DeltaTime);
 
-	/** Updates character fall state every frame if the character is falling */
-	virtual void UpdateFallState(float DeltaTime);
-
 	/** Updates character normal attck state every frame if the character wants to normal attack */
 	virtual void UpdateNormalAttackState(float DeltaTime);
 
@@ -799,12 +816,6 @@ public:
 	/** Returns true if character can move */
 	UFUNCTION(BlueprintCallable, Category = CharacterState)
 	virtual bool CanMove() const;
-	
-	/** Returns true if character can jump */
-	virtual bool CanJump() const;
-
-	/** Returns true if character can guard against incoming attacks */
-	virtual bool CanGuardAgainstAttacks() const;
 
 	/** Returns true if character can block */
 	virtual bool CanBlock() const;

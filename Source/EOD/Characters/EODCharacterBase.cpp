@@ -241,6 +241,7 @@ void AEODCharacterBase::UpdateCharacterState(float DeltaTime)
 	case ECharacterState::SwitchingWeapon:
 		break;
 	case ECharacterState::Jumping:
+		UpdateFallState(DeltaTime);
 		break;
 	case ECharacterState::Dodging:
 		break;
@@ -972,6 +973,14 @@ void AEODCharacterBase::UpdateBlockState(float DeltaTime)
 	}
 }
 
+void AEODCharacterBase::StartJumping()
+{
+}
+
+void AEODCharacterBase::StopJumping()
+{
+}
+
 void AEODCharacterBase::SetCharacterStateInfo(FCharacterStateInfo NewStateInfo)
 {
 	Client_CharacterStateInfo = NewStateInfo;
@@ -1141,13 +1150,17 @@ void AEODCharacterBase::InitiateRotationToYawFromAxisInput()
 
 void AEODCharacterBase::Jump()
 {
+
+
+	/*
 	if (IsGuardActive())
 	{
 		DeactivateGuard();
 	}
+	*/
 
-	SetCharacterStateAllowsRotation(false);
-	Super::Jump();
+	// SetCharacterStateAllowsRotation(false);
+	// Super::Jump();
 }
 
 void AEODCharacterBase::OnPressedForward()
