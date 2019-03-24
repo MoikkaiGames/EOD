@@ -112,7 +112,24 @@ void AEODCharacterBase::Tick(float DeltaTime)
 
 	ResetTickDependentData();
 
+	if (Controller && Controller->IsLocalController())
+	{
+		bool bCanGuardAgainstAttacks = CanGuardAgainstAttacks();
+		// If character wants to guard but it's guard is not yet active
+		if (bWantsToGuard && !IsGuardActive() && bCanGuardAgainstAttacks)
+		{
+			StartBlockingAttacks();
+		}
+		// If the character guard is active but it doesn't want to guard anymore
+		else if (!bWantsToGuard && IsGuardActive())
+		{
+			StopBlockingAttacks();
+		}
+	}
+
 	UpdateCharacterState(DeltaTime);
+
+
 
 
 	/*
@@ -157,7 +174,7 @@ void AEODCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(AEODCharacterBase, Server_CharacterStateInfo);
 
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bIsRunning, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(AEODCharacterBase, bGuardActive, COND_SkipOwner);
+	// DOREPLIFETIME_CONDITION(AEODCharacterBase, bGuardActive, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bWeaponSheathed, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bPCTryingToMove, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, BlockMovementDirectionYaw, COND_SkipOwner);
@@ -228,6 +245,7 @@ void AEODCharacterBase::UpdateCharacterState(float DeltaTime)
 	case ECharacterState::Dodging:
 		break;
 	case ECharacterState::Blocking:
+		UpdateBlockState(DeltaTime);
 		break;
 	case ECharacterState::Attacking:
 		break;
@@ -683,9 +701,22 @@ void AEODCharacterBase::OnRep_CharacterStateInfo(FCharacterStateInfo LastStateIn
 		return;
 	}
 
-	if (Server_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
+	if (LastStateInfo.CharacterState == ECharacterState::Blocking)
+	{
+		StopBlockingAttacks();
+	}
+
+	if (Server_CharacterStateInfo.CharacterState == ECharacterState::IdleWalkRun)
+	{
+		ResetState();
+	}
+	else if (Server_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
 	{
 		StartDodge();
+	}
+	else if (Server_CharacterStateInfo.CharacterState == ECharacterState::Blocking)
+	{
+		StartBlockingAttacks();
 	}
 }
 
@@ -863,9 +894,82 @@ void AEODCharacterBase::ResetState()
 	}
 
 	Client_CharacterStateInfo = FCharacterStateInfo();
-	bUseControllerRotationYaw = false;
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	MoveComp->bUseControllerDesiredRotation = false;
 	bCharacterStateAllowsMovement = false;
 	bCharacterStateAllowsRotation = false;
+}
+
+void AEODCharacterBase::StartBlockingAttacks()
+{
+	bGuardActive = true;
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	MoveComp->MaxWalkSpeed = DefaultWalkSpeedWhileBlocking * MovementSpeedModifier;
+	MoveComp->bUseControllerDesiredRotation = true;
+	bCharacterStateAllowsMovement = true;
+	bCharacterStateAllowsRotation = false; // no custom rotation allowed since we will be using controller rotation yaw
+
+	if (GetNetMode() != ENetMode::NM_Client)
+	{
+		StartBlockingDamage(DamageBlockTriggerDelay);
+	}
+
+	bool bIsLocalPlayerController = Controller && Controller->IsLocalPlayerController();
+	if (bIsLocalPlayerController)
+	{
+		FCharacterStateInfo StateInfo;
+		StateInfo.CharacterState = ECharacterState::Blocking;
+		Client_CharacterStateInfo = StateInfo;
+		Server_SetCharacterStateInfo(StateInfo);
+	}
+	else
+	{
+		Client_CharacterStateInfo = Server_CharacterStateInfo;
+	}
+}
+
+void AEODCharacterBase::StopBlockingAttacks()
+{
+	bGuardActive = false;
+
+	if (GetNetMode() != ENetMode::NM_Client)
+	{
+		StopBlockingDamage();
+	}
+
+	if (Controller && Controller->IsLocalController())
+	{
+		ResetState();
+		Server_SetCharacterStateInfo(FCharacterStateInfo());
+	}
+}
+
+void AEODCharacterBase::UpdateBlockState(float DeltaTime)
+{
+	if (Controller && Controller->IsLocalPlayerController())
+	{
+		if (ForwardAxisValue == 0)
+		{
+			if (RightAxisValue > 0)
+			{
+				SetBlockMovementDirectionYaw(90.f);
+			}
+			else if (RightAxisValue < 0)
+			{
+				SetBlockMovementDirectionYaw(-90.f);
+			}
+			else
+			{
+				SetBlockMovementDirectionYaw(0.f);
+			}
+		}
+		else
+		{
+			float NewYaw = FMath::RadiansToDegrees(FMath::Atan2(RightAxisValue, ForwardAxisValue));
+			SetBlockMovementDirectionYaw(NewYaw);
+		}
+	}
 }
 
 void AEODCharacterBase::SetCharacterStateInfo(FCharacterStateInfo NewStateInfo)

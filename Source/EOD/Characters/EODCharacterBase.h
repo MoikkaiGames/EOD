@@ -180,6 +180,13 @@ public:
 	/** Reset state usually sets state variables to default values and puts character in IdleWalkRun state */
 	virtual void ResetState();
 
+	virtual void StartBlockingAttacks();
+
+	virtual void StopBlockingAttacks();
+
+	/** Updates character guard state every frame if the character wants to guard */
+	virtual void UpdateBlockState(float DeltaTime);
+
 	void SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
 
 
@@ -1377,9 +1384,10 @@ inline void AEODCharacterBase::StartBlockingDamage(float Delay)
 	}
 	else
 	{
-		if (GetWorld())
+		UWorld* World = GetWorld();
+		if (World)
 		{
-			GetWorld()->GetTimerManager().SetTimer(BlockTimerHandle, this, &AEODCharacterBase::EnableDamageBlocking, Delay, false);
+			World->GetTimerManager().SetTimer(BlockTimerHandle, this, &AEODCharacterBase::EnableDamageBlocking, Delay, false);
 		}
 	}
 }
@@ -1450,10 +1458,14 @@ inline void AEODCharacterBase::SetCharacterMovementDirection(ECharMovementDirect
 
 inline void AEODCharacterBase::SetBlockMovementDirectionYaw(float NewYaw)
 {
-	BlockMovementDirectionYaw = NewYaw;
-	if (Role < ROLE_Authority)
+	const float AngleTolerance = 1e-3f;
+	if (!FMath::IsNearlyEqual(BlockMovementDirectionYaw, NewYaw, AngleTolerance))
 	{
-		Server_SetBlockMovementDirectionYaw(NewYaw);
+		BlockMovementDirectionYaw = NewYaw;
+		if (Role < ROLE_Authority)
+		{
+			Server_SetBlockMovementDirectionYaw(NewYaw);
+		}
 	}
 }
 
