@@ -100,10 +100,6 @@ AEODCharacterBase::AEODCharacterBase(const FObjectInitializer& ObjectInitializer
 
 	Faction = EFaction::Player;
 
-
-	Server_CharacterState = ECharacterState::IdleWalkRun;
-	Client_CharacterState = ECharacterState::IdleWalkRun;
-
 	MovementSpeedModifier = 1.f;
 
 }
@@ -158,6 +154,7 @@ void AEODCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(AEODCharacterBase, CurrentRide);
 	DOREPLIFETIME(AEODCharacterBase, MovementSpeedModifier);
+	DOREPLIFETIME(AEODCharacterBase, Server_CharacterStateInfo);
 
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bIsRunning, COND_SkipOwner);
 	DOREPLIFETIME_CONDITION(AEODCharacterBase, bGuardActive, COND_SkipOwner);
@@ -219,7 +216,7 @@ void AEODCharacterBase::Restart()
 void AEODCharacterBase::UpdateCharacterState(float DeltaTime)
 {
 	// Update client state
-	switch (Client_CharacterState)
+	switch (Client_CharacterStateInfo.CharacterState)
 	{
 	case ECharacterState::IdleWalkRun:
 		UpdateIdleWalkRunState(DeltaTime);
@@ -677,10 +674,43 @@ void AEODCharacterBase::OnRep_GuardActive()
 	}
 }
 
+void AEODCharacterBase::OnRep_CharacterStateInfo(FCharacterStateInfo LastStateInfo)
+{
+	// If the replicated character state info is already same as local state info then the client should be the owner
+	if (Server_CharacterStateInfo == Client_CharacterStateInfo)
+	{
+		// check(Controller && Controller->IsLocalController());
+		return;
+	}
+
+	if (Server_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
+	{
+		StartDodge();
+	}
+}
+
 //~ @todo
 void AEODCharacterBase::OnRep_ServerCharacterState(ECharacterState LastState)
 {
-	
+}
+
+void AEODCharacterBase::Server_SetCharacterStateInfo_Implementation(FCharacterStateInfo NewStateInfo)
+{
+	FCharacterStateInfo OldStateInfo = Server_CharacterStateInfo;
+	Server_CharacterStateInfo = NewStateInfo;
+	if (Controller && Controller->IsLocalPlayerController())
+	{
+		return;
+	}
+	else
+	{
+		OnRep_CharacterStateInfo(OldStateInfo);
+	}
+}
+
+bool AEODCharacterBase::Server_SetCharacterStateInfo_Validate(FCharacterStateInfo NewStateInfo)
+{
+	return true;
 }
 
 void AEODCharacterBase::Server_SpawnAndMountRideableCharacter_Implementation(TSubclassOf<ARideBase> RideCharacterClass)
@@ -823,6 +853,28 @@ void AEODCharacterBase::CancelDodge()
 
 void AEODCharacterBase::FinishDodge()
 {
+}
+
+void AEODCharacterBase::ResetState()
+{
+	if (GetNetMode() != ENetMode::NM_Client)
+	{
+		Server_CharacterStateInfo = FCharacterStateInfo();
+	}
+
+	Client_CharacterStateInfo = FCharacterStateInfo();
+	bUseControllerRotationYaw = false;
+	bCharacterStateAllowsMovement = false;
+	bCharacterStateAllowsRotation = false;
+}
+
+void AEODCharacterBase::SetCharacterStateInfo(FCharacterStateInfo NewStateInfo)
+{
+	Client_CharacterStateInfo = NewStateInfo;
+	if (Role < ROLE_Authority)
+	{
+		Server_SetCharacterStateInfo(NewStateInfo);
+	}
 }
 
 void AEODCharacterBase::EnableCharacterGuard()

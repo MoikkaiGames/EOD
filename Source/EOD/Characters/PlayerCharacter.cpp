@@ -820,72 +820,106 @@ void APlayerCharacter::StartDodge()
 	UAnimMontage* DodgeMontage = AnimRef ? AnimRef->Dodge.Get() : nullptr;
 	check(DodgeMontage);
 
-	if (Controller && Controller->IsLocalPlayerController())
+	bUseControllerRotationYaw = false;
+	bCharacterStateAllowsMovement = false;
+	bCharacterStateAllowsRotation = false;
+
+	uint8 SubStateIndex = 0;
+	bool bIsLocalPlayerController = Controller && Controller->IsLocalPlayerController();
+	if (bIsLocalPlayerController)
 	{
-
-	}
-
-
-	/*
-	UAnimMontage* DodgeMontage = GetActiveAnimationReferences() ? GetActiveAnimationReferences()->Dodge.Get() : nullptr;
-
-	// StartDodge() must always be called after calling CanDodge(), which checks whether the animation references are valid or not.
-	// If StartDodge() has been called, DodgeMontage MUST be valid.
-	check(DodgeMontage);
-
-	//~ @todo clean up old states
-	SetUseControllerRotationYaw(false);
-	SetCharacterStateAllowsMovement(false);
-	SetCharacterStateAllowsRotation(false);
-
-	// Rotate character
-	float DesiredYaw = GetControllerRotationYaw();
-	if (ForwardAxisValue != 0)
-	{
-		DesiredYaw = DesiredRotationYawFromAxisInput;
-	}
-
-	FRotator DesiredRotation = FRotator(0.f, DesiredYaw, 0.f);
-
-	// Instantly rotate character
-	SetCharacterRotation(DesiredRotation);
-	// Update desired rotation yaw in movement component so it doesn't try to rotate back to original rotation yaw
-	UEODCharacterMovementComponent* MoveComp = Cast<UEODCharacterMovementComponent>(GetCharacterMovement());
-	if (MoveComp)
-	{
-		MoveComp->SetDesiredCustomRotation(DesiredRotation);
-	}
-
-	FName SectionToPlay;
-	if (ForwardAxisValue == 0)
-	{
-		if (RightAxisValue > 0)
+		float DesiredYaw = GetControllerRotationYaw();
+		if (ForwardAxisValue != 0)
 		{
-			SectionToPlay = UCharacterLibrary::SectionName_RightDodge;
+			DesiredYaw = GetRotationYawFromAxisInput();
 		}
-		else if (RightAxisValue < 0)
+
+		FRotator DesiredRotation = FRotator(0.f, DesiredYaw, 0.f);
+
+		// Instantly rotate character
+		SetCharacterRotation(DesiredRotation);
+		// Update desired rotation yaw in movement component so it doesn't try to rotate back to original rotation yaw
+		UEODCharacterMovementComponent* MoveComp = Cast<UEODCharacterMovementComponent>(GetCharacterMovement());
+		if (MoveComp)
 		{
-			SectionToPlay = UCharacterLibrary::SectionName_LeftDodge;
+			MoveComp->SetDesiredCustomRotation(DesiredRotation);
+		}
+		
+		FCharacterStateInfo StateInfo;
+		StateInfo.CharacterState = ECharacterState::Dodging;
+		StateInfo.SubStateIndex = 0;
+
+		FName SectionToPlay;
+		if (ForwardAxisValue == 0)
+		{
+			if (RightAxisValue > 0)
+			{
+				StateInfo.SubStateIndex = 3;
+			}
+			else if (RightAxisValue < 0)
+			{
+				StateInfo.SubStateIndex = 2;
+			}
+			else
+			{
+				StateInfo.SubStateIndex = 1;
+			}
 		}
 		else
 		{
-			SectionToPlay = UCharacterLibrary::SectionName_BackwardDodge;
+			if (ForwardAxisValue > 0)
+			{
+				StateInfo.SubStateIndex = 0;
+			}
+			else if (ForwardAxisValue < 0)
+			{
+				StateInfo.SubStateIndex = 1;
+			}
 		}
+
+		Client_CharacterStateInfo = StateInfo;
+		Server_SetCharacterStateInfo(StateInfo);
 	}
 	else
 	{
-		if (ForwardAxisValue > 0)
-		{
-			SectionToPlay = UCharacterLibrary::SectionName_ForwardDodge;
-		}
-		else if (ForwardAxisValue < 0)
-		{
-			SectionToPlay = UCharacterLibrary::SectionName_BackwardDodge;
-		}
+		Client_CharacterStateInfo = Server_CharacterStateInfo;
 	}
-	PlayAnimationMontage(DodgeMontage, SectionToPlay, ECharacterState::Dodging);
-	TriggeriFrames(DodgeImmunityDuration, DodgeImmunityTriggerDelay);
-	*/
+
+	// SubStateIndex
+	// 0 = Forward Dodge
+	// 1 = Backward Dodge
+	// 2 = Left Dodge
+	// 3 = Right Dodge
+
+	FName SectionToPlay = NAME_None;
+	if (Client_CharacterStateInfo.SubStateIndex == 0)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_ForwardDodge;
+	}
+	else if (Client_CharacterStateInfo.SubStateIndex == 1)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_BackwardDodge;
+	}
+	else if (Client_CharacterStateInfo.SubStateIndex == 2)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_LeftDodge;
+	}
+	else if (Client_CharacterStateInfo.SubStateIndex == 3)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_RightDodge;
+	}
+
+	PlayAnimMontage(DodgeMontage, 1.f, SectionToPlay);
+
+	if (GetNetMode() != ENetMode::NM_Client)
+	{
+		TriggeriFrames(DodgeImmunityDuration, DodgeImmunityTriggerDelay);
+	}
+}
+
+void APlayerCharacter::FinishDodge()
+{
+	ResetState();
 }
 
 void APlayerCharacter::OnDodge()
@@ -2045,6 +2079,29 @@ void APlayerCharacter::ExitDialogue_Implementation(UDialogueWindowWidget* Widget
 
 void APlayerCharacter::OnMontageBlendingOut(UAnimMontage* AnimMontage, bool bInterrupted)
 {
+	/**
+	 * When a montage is blending out, it could either be blending out because it has finished
+	 * or it could be blending out because another montage was played which triggered a blend out on this montage.
+	 * We need to check and make sure that the local character state corresponds to the montage currently blending out,
+	 * so that we can be sure that the montage blend out wasn't triggered by a state change.
+	 */
+	
+	if (Client_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
+	{
+		FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
+		UAnimMontage* DodgeMontage = AnimRef ? AnimRef->Dodge.Get() : nullptr;
+		if (DodgeMontage && DodgeMontage == AnimMontage)
+		{
+			FinishDodge();
+		}
+	}
+
+
+
+
+
+
+
 	if (GetController() && GetController()->IsLocalPlayerController())
 	{
 		// @todo

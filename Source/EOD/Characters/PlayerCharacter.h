@@ -550,6 +550,9 @@ public:
 
 	virtual void StartDodge() override;
 
+	/** Finish dodging */
+	virtual void FinishDodge() override;
+
 private:
 
 

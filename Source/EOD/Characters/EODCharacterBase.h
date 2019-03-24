@@ -69,20 +69,36 @@ DECLARE_MULTICAST_DELEGATE_FourParams(FOnWeaponChangedDelegate,
 									  FWeaponTableRow*);
 
 USTRUCT(BlueprintType)
-struct EOD_API FCharacterStateRepInfo
+struct EOD_API FCharacterStateInfo
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	ECharacterState ServerState;
+	ECharacterState CharacterState;
 
 	UPROPERTY()
 	uint8 SubStateIndex;
 
-	FCharacterStateRepInfo()
+	FCharacterStateInfo()
 	{
-		ServerState = ECharacterState::IdleWalkRun;
-		SubState = NAME_None;
+		CharacterState = ECharacterState::IdleWalkRun;
+		SubStateIndex = 0;
+	}
+
+	bool operator==(const FCharacterStateInfo& OtherStateInfo)
+	{
+		return this->CharacterState == OtherStateInfo.CharacterState && this->SubStateIndex == OtherStateInfo.SubStateIndex;
+	}
+
+	bool operator!=(const FCharacterStateInfo& OtherStateInfo)
+	{
+		return this->CharacterState != OtherStateInfo.CharacterState || this->SubStateIndex != OtherStateInfo.SubStateIndex;
+	}
+
+	void operator=(const FCharacterStateInfo& OtherStateInfo)
+	{
+		this->CharacterState = OtherStateInfo.CharacterState;
+		this->SubStateIndex = OtherStateInfo.SubStateIndex;
 	}
 };
 
@@ -131,20 +147,20 @@ public:
 	//  Character State
 	// --------------------------------------
 
-	/** Character state on server */
-	UPROPERTY(ReplicatedUsing = OnRep_ServerCharacterState)
-	ECharacterState Server_CharacterState;
+	/** Character state info on server */
+	UPROPERTY(ReplicatedUsing = OnRep_CharacterStateInfo)
+	FCharacterStateInfo Server_CharacterStateInfo;
 
-	/** Character state on local client */
+	/** Character state info on local client */
 	UPROPERTY()
-	ECharacterState Client_CharacterState;
+	FCharacterStateInfo Client_CharacterStateInfo;
 
 	/** Determines whether the local state is yet to change to match server state */
 	UPROPERTY()
 	uint32 bPendingLocalStateChange : 1;
 
 	/** A list of all the states that the character must transition through locally to match the server state */
-	TQueue<ECharacterState> PendingStates;
+	TQueue<FCharacterStateInfo> PendingStates;
 
 	/** Update character states */
 	virtual void UpdateCharacterState(float DeltaTime);
@@ -160,6 +176,15 @@ public:
 
 	/** Finish dodging */
 	virtual void FinishDodge();
+
+	/** Reset state usually sets state variables to default values and puts character in IdleWalkRun state */
+	virtual void ResetState();
+
+	void SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
+
+
+
+public:
 
 	FORCEINLINE void SetCharacterState(const ECharacterState NewState)
 	{
@@ -1234,20 +1259,18 @@ protected:
 	// UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = CombatEvents)
 	virtual void TurnOffTargetSwitch();
 
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Network
-private:
+protected:
 
 	// --------------------------------------
 	//  Network
 	// --------------------------------------
 
 	UFUNCTION()
+	void OnRep_CharacterStateInfo(FCharacterStateInfo LastStateInfo);
+
+
+	UFUNCTION()
 	void OnRep_ServerCharacterState(ECharacterState LastState);
-
-
-
 
 	UFUNCTION()
 	void OnRep_WeaponSheathed();
@@ -1261,6 +1284,8 @@ private:
 
 	// UFUNCTION(Server, Reliable, WithValidation)
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SpawnAndMountRideableCharacter(TSubclassOf<ARideBase> RideCharacterClass);
