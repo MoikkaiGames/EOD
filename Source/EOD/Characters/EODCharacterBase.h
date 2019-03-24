@@ -162,11 +162,14 @@ public:
 	/** A list of all the states that the character must transition through locally to match the server state */
 	TQueue<FCharacterStateInfo> PendingStates;
 
-	/** Update character states */
-	virtual void UpdateCharacterState(float DeltaTime);
-
 	/** Reset character state : usually sets state variables to default values and puts character in IdleWalkRun state */
 	virtual void ResetState();
+
+	/** Determines if the character is in dodge state. Used to trigger dodge animation */
+	FORCEINLINE bool IsDodging() const;
+
+	/** Determines if the character is dodging incoming damage */
+	FORCEINLINE bool IsDodgingDamage() const;
 
 	/** Returns true if character can dodge */
 	virtual bool CanDodge() const;
@@ -180,6 +183,18 @@ public:
 	/** Finish dodging */
 	virtual void FinishDodge();
 
+	/**
+	 * Detemines if the character is in block state. Used to trigger block animation.
+	 * @note there is a slight delay between when the block animation is triggered and when the character actually starts blocking damage
+	 */
+	FORCEINLINE bool IsBlocking() const;
+
+	/**
+	 * Determines if the character is actively blocking any incoming damage
+	 * @note there is a slight delay between when the block animation is triggered and when the character actually starts blocking damage
+	 */
+	FORCEINLINE bool IsBlockingDamage() const;
+
 	/** Returns true if character can guard against incoming attacks */
 	virtual bool CanGuardAgainstAttacks() const;
 
@@ -188,9 +203,6 @@ public:
 
 	/** Leave guard/block state */
 	virtual void StopBlockingAttacks();
-
-	/** Updates character guard state every frame if the character wants to guard */
-	virtual void UpdateBlockState(float DeltaTime);
 
 	/** Returns true if character can jump */
 	virtual bool CanJump() const;
@@ -201,13 +213,70 @@ public:
 	/** Leave jump/fall state */
 	virtual void StopJumping();
 
-	/** Updates character fall state every frame if the character is falling */
-	virtual void UpdateFallState(float DeltaTime);
+	/** Enter normal attack state */
+	virtual void StartNormalAttack();
+
+	/** Leave normal attack state */
+	virtual void StopNormalAttack();
 
 	/** [server + client] Set and replicate character state info over network */
 	void SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
 
+	/** Sets whether character wants to guard or not */
+	FORCEINLINE void SetWantsToGuard(bool bValue) { bWantsToGuard = bValue; }
+
+	FORCEINLINE void SetWantsToNormalAttack(bool bValue) { bWantsToNormalAttack = bValue; }
+
+protected:
+
+	/** Determines whether the character wants to guard right now */
+	UPROPERTY(Transient)
+	uint32 bWantsToGuard : 1;
+
+	/** Determines whether the character wants to 'normal attack' right now */
+	UPROPERTY(Transient)
+	uint32 bWantsToNormalAttack : 1;
+
+	/** Update character states */
+	virtual void UpdateCharacterState(float DeltaTime);
+
+	/** Updates character guard state every frame if the character wants to guard */
+	virtual void UpdateBlockState(float DeltaTime);
+
+	/** Updates character fall state every frame if the character is falling */
+	virtual void UpdateFallState(float DeltaTime);
+
+	/** Updates character normal attck state every frame if the character wants to normal attack */
+	virtual void UpdateNormalAttackState(float DeltaTime);
+
 public:
+
+	/** Returns true if character is idling */
+	FORCEINLINE bool IsIdle() const;
+
+	/** Returns true if character is moving around */
+	FORCEINLINE bool IsMoving() const;
+
+	/** Returns true if character is in idle-walk-run state */
+	FORCEINLINE bool IsIdleOrMoving() const;
+
+	/** Returns true if character is jumping */
+	FORCEINLINE bool IsJumping() const;
+
+	/** Returns true if character is currently casting a spell */
+	FORCEINLINE bool IsCastingSpell() const;
+
+	/** Returns true if character is using a normal attack */
+	FORCEINLINE bool IsNormalAttacking() const;
+
+	/** Returns true if character is using any skill */
+	FORCEINLINE bool IsUsingAnySkill() const;
+
+	/** Returns true if character is using skill at SkillIndex */
+	FORCEINLINE bool IsUsingSkill(FName SkillID) const;
+
+	/** Returns true if character has just been hit */
+	FORCEINLINE bool HasBeenHit() const;
 
 	FORCEINLINE void SetCharacterState(const ECharacterState NewState)
 	{
@@ -265,9 +334,9 @@ protected:
 	UFUNCTION()
 	void DisableiFrames();
 
-	inline void ActivateGuard();
+	// inline void ActivateGuard();
 
-	inline void DeactivateGuard();
+	// inline void DeactivateGuard();
 
 	/** [local] Transition to character guard animation */
 	UFUNCTION()
@@ -302,12 +371,8 @@ private:
 	uint32 bBlockingDamage : 1;
 
 	/** Determines whether the character has it's guard up */
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_GuardActive)
-	uint32 bGuardActive : 1;
-
-	/** Determines whether the character wants to guard right now */
-	UPROPERTY(Transient)
-	uint32 bWantsToGuard : 1;
+	// UPROPERTY(Transient, ReplicatedUsing = OnRep_GuardActive)
+	// uint32 bGuardActive : 1;
 
 protected:
 
@@ -396,8 +461,7 @@ public:
 	//	Input Handling
 	// --------------------------------------
 
-	/** Sets whether character wants to guard or not */
-	FORCEINLINE void SetWantsToGuard(bool bNewValue) { bWantsToGuard = bNewValue; }
+	// FORCEINLINE void SetWantsToNormalAttack(bool bValue) { }
 
 	/** Returns the yaw that this pawn wants to rotate to based on the movement input from player */
 	UFUNCTION(BlueprintCallable, Category = "Input|Rotation", meta = (DisplayName = "Get Rotation Yaw From Axis Input"))
@@ -568,9 +632,6 @@ protected:
 	/** Updates character movement every frame */
 	virtual void UpdateMovement(float DeltaTime);
 
-	/** Updates character normal attck state every frame if the character wants to normal attack */
-	virtual void UpdateNormalAttackState(float DeltaTime);
-
 	/** Updates character guard state every frame if the character wants to guard */
 	virtual void UpdateGuardState(float DeltaTime);
 
@@ -630,10 +691,6 @@ public:
 	/** Put or remove weapon inside sheath */
 	UFUNCTION(BlueprintCallable, Category = "EOD Character Actions")
 	virtual void ToggleSheathe();
-	
-	virtual void StartNormalAttack();
-
-	virtual void StopNormalAttack();
 
 	virtual void PlayToggleSheatheAnimation();
 
@@ -691,6 +748,7 @@ protected:
 	}
 
 	/** [server + local] Sets whether this character has it's guard up against incoming attacks or not */
+	/*
 	FORCEINLINE void SetGuardActive(bool bNewValue)
 	{
 		bGuardActive = bNewValue;
@@ -707,6 +765,7 @@ protected:
 			Server_SetGuardActive(bNewValue);
 		}
 	}
+	*/
 
 	inline void UpdateCharacterMovementDirection();
 
@@ -717,7 +776,7 @@ public:
 
 	FORCEINLINE bool IsPCTryingToMove() const { return bPCTryingToMove; }
 
-	FORCEINLINE bool IsGuardActive() const { return bGuardActive; }
+	// FORCEINLINE bool IsGuardActive() const { return bGuardActive; }
 
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -763,51 +822,6 @@ public:
 	/** Returns true if character is dead */
 	UFUNCTION(BlueprintPure, Category = CharacterStatus, meta = (DisplayName = "Is Dead"))
 	bool BP_IsDead() const;
-	
-	/** Returns true if character is idling */
-	FORCEINLINE bool IsIdle() const;
-
-	/** Returns true if character is moving around */
-	FORCEINLINE bool IsMoving() const;
-
-	/** Returns true if character is in idle-walk-run state */
-	FORCEINLINE bool IsIdleOrMoving() const;
-
-	/** Returns true if character is jumping */
-	FORCEINLINE bool IsJumping() const;
-
-	/** Determines if the character is in dodge state. Used to trigger dodge animation */
-	FORCEINLINE bool IsDodging() const;
-	
-	/** Determines if the character is dodging incoming damage */
-	FORCEINLINE bool IsDodgingDamage() const;
-
-	/**
-	 * Detemines if the character is in block state. Used to trigger block animation.
-	 * @note there is a slight delay between when the block animation is triggered and when the character actually starts blocking damage
-	 */
-	FORCEINLINE bool IsBlocking() const;
-
-	/** 
-	 * Determines if the character is actively blocking any incoming damage
-	 * @note there is a slight delay between when the block animation is triggered and when the character actually starts blocking damage
-	 */
-	FORCEINLINE bool IsBlockingDamage() const;
-
-	/** Returns true if character is currently casting a spell */
-	FORCEINLINE bool IsCastingSpell() const;
-	
-	/** Returns true if character is using a normal attack */
-	FORCEINLINE bool IsNormalAttacking() const;
-
-	/** Returns true if character is using any skill */
-	FORCEINLINE bool IsUsingAnySkill() const;
-
-	/** Returns true if character is using skill at SkillIndex */
-	FORCEINLINE bool IsUsingSkill(FName SkillID) const;
-
-	/** Returns true if character has just been hit */
-	FORCEINLINE bool HasBeenHit() const;
 
 	/** Returns true if character has just been hit */
 	UFUNCTION(BlueprintPure, Category = CharacterStatus, meta = (DisplayName = "Has Been Hit"))
@@ -1375,6 +1389,7 @@ protected:
 	
 };
 
+/*
 inline void AEODCharacterBase::ActivateGuard()
 {
 	SetGuardActive(true);
@@ -1386,6 +1401,7 @@ inline void AEODCharacterBase::DeactivateGuard()
 	SetGuardActive(false);
 	StopBlockingDamage();
 }
+*/
 
 inline void AEODCharacterBase::StartBlockingDamage(float Delay)
 {

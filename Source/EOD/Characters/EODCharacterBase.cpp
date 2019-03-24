@@ -112,18 +112,24 @@ void AEODCharacterBase::Tick(float DeltaTime)
 
 	ResetTickDependentData();
 
-	if (Controller && Controller->IsLocalController())
+	if (Controller && Controller->IsLocalPlayerController())
 	{
 		bool bCanGuardAgainstAttacks = CanGuardAgainstAttacks();
 		// If character wants to guard but it's guard is not yet active
-		if (bWantsToGuard && !IsGuardActive() && bCanGuardAgainstAttacks)
+		if (bWantsToGuard && !IsBlocking() && bCanGuardAgainstAttacks)
 		{
 			StartBlockingAttacks();
 		}
 		// If the character guard is active but it doesn't want to guard anymore
-		else if (!bWantsToGuard && IsGuardActive())
+		else if (!bWantsToGuard && IsBlocking())
 		{
 			StopBlockingAttacks();
+		}
+
+		bool bCanNormalAttack = CanNormalAttack();
+		if (bWantsToNormalAttack && !IsNormalAttacking() && bCanNormalAttack)
+		{
+
 		}
 	}
 
@@ -191,6 +197,7 @@ void AEODCharacterBase::BeginPlay()
 	// Intentional additional call to BindUIDelegates (another in Restart())
 	BindUIDelegates();
 
+	// Prevent NPCs from auto-rotating to zero yaw
 	UEODCharacterMovementComponent* MoveComp = Cast<UEODCharacterMovementComponent>(GetCharacterMovement());
 	if (MoveComp)
 	{
@@ -685,6 +692,7 @@ void AEODCharacterBase::OnRep_WeaponSheathed()
 
 void AEODCharacterBase::OnRep_GuardActive()
 {
+	/*
 	if (bGuardActive)
 	{
 		EnableCharacterGuard();
@@ -693,6 +701,7 @@ void AEODCharacterBase::OnRep_GuardActive()
 	{
 		DisableCharacterGuard();
 	}
+	*/
 }
 
 void AEODCharacterBase::OnRep_CharacterStateInfo(FCharacterStateInfo LastStateInfo)
@@ -908,7 +917,7 @@ void AEODCharacterBase::StartBlockingAttacks()
 {
 	//~ @todo stop normal attack (and/or block after normal attack finishes)
 
-	bGuardActive = true;
+	// bGuardActive = true;
 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 	MoveComp->MaxWalkSpeed = DefaultWalkSpeedWhileBlocking * MovementSpeedModifier;
@@ -937,7 +946,7 @@ void AEODCharacterBase::StartBlockingAttacks()
 
 void AEODCharacterBase::StopBlockingAttacks()
 {
-	bGuardActive = false;
+	// bGuardActive = false;
 
 	if (GetNetMode() != ENetMode::NM_Client)
 	{
@@ -1038,7 +1047,8 @@ void AEODCharacterBase::MoveRight(const float Value)
 
 void AEODCharacterBase::UpdateRotation(float DeltaTime)
 {
-	if (IsGuardActive())
+	// if (IsGuardActive())
+	if (IsBlocking())
 	{
 		SetUseControllerRotationYaw(true);
 		return;
@@ -1069,7 +1079,8 @@ void AEODCharacterBase::UpdateMovement(float DeltaTime)
 		return;
 	}	
 
-	if (IsGuardActive())
+	// if (IsGuardActive())
+	if (IsBlocking())
 	{
 		float NewSpeed = DefaultWalkSpeedWhileBlocking * StatsComp->GetMovementSpeedModifier();
 		SetWalkSpeed(NewSpeed);
@@ -1257,6 +1268,7 @@ void AEODCharacterBase::OnMountingRide(ARideBase* RideCharacter)
 
 void AEODCharacterBase::UpdateGuardState(float DeltaTime)
 {
+	/*
 	// If character wants to guard but the guard is not yet active 
 	if (bWantsToGuard && !IsGuardActive() && CanGuardAgainstAttacks())
 	{
@@ -1266,8 +1278,9 @@ void AEODCharacterBase::UpdateGuardState(float DeltaTime)
 	{
 		DeactivateGuard();
 	}
+	*/
 
-	if (IsGuardActive())
+	// if (IsGuardActive())
 	{
 		if (ForwardAxisValue == 0)
 		{
@@ -1350,7 +1363,7 @@ bool AEODCharacterBase::Server_SetWeaponSheathed_Validate(bool bNewValue)
 
 void AEODCharacterBase::Server_SetGuardActive_Implementation(bool bValue)
 {
-	SetGuardActive(bValue);
+	// SetGuardActive(bValue);
 }
 
 bool AEODCharacterBase::Server_SetGuardActive_Validate(bool bValue)

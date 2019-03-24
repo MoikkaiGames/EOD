@@ -257,7 +257,8 @@ bool APlayerCharacter::CanDodge() const
 	UAnimMontage* Animation = AnimationRef ? AnimationRef->Dodge.Get() : nullptr;
 
 	// @todo add UsingSkill, Looting, Interacting, etc. to this too
-	bool bStateAllowsDodge = IsIdleOrMoving() || IsGuardActive() || IsCastingSpell() || IsNormalAttacking();
+	// bool bStateAllowsDodge = IsIdleOrMoving() || IsGuardActive() || IsCastingSpell() || IsNormalAttacking();
+	bool bStateAllowsDodge = IsIdleOrMoving() || IsBlocking() || IsCastingSpell() || IsNormalAttacking();
 
 	// If we have a valid animation for dodge and the character state allows dodging
 	return Animation && bStateAllowsDodge;
@@ -818,6 +819,12 @@ void APlayerCharacter::SetActiveWeaponSlotIndex(int32 NewSlotIndex)
 
 void APlayerCharacter::StartDodge()
 {
+	if (IsBlocking())
+	{
+		StopBlockingAttacks();
+	}
+
+
 	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
 	UAnimMontage* DodgeMontage = AnimRef ? AnimRef->Dodge.Get() : nullptr;
 	check(DodgeMontage);

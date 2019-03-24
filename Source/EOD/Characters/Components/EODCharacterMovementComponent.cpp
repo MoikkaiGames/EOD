@@ -112,7 +112,8 @@ float UEODCharacterMovementComponent::GetMaxSpeed() const
 
 void UEODCharacterMovementComponent::Server_SetDesiredCustomRotation_Implementation(const FRotator& NewRotation)
 {
-	SetDesiredCustomRotation(NewRotation);
+	DesiredCustomRotation = NewRotation;
+	// SetDesiredCustomRotation(NewRotation);
 }
 
 bool UEODCharacterMovementComponent::Server_SetDesiredCustomRotation_Validate(const FRotator& NewRotation)
