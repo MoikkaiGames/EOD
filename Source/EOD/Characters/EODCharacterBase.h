@@ -409,7 +409,7 @@ public:
 	/** Updates the DesiredCustomRotationYaw in pawn's movement component to the DesiredRotationYawFromAxisInput */
 	void InitiateRotationToYawFromAxisInput();
 
-	virtual void Jump() override;
+	// virtual void Jump() override;
 
 	/** Zoom in player camera */
 	inline void ZoomInCamera();
@@ -1639,7 +1639,8 @@ FORCEINLINE bool AEODCharacterBase::IsMoving() const
 
 FORCEINLINE bool AEODCharacterBase::IsIdleOrMoving() const
 {
-	return CharacterState == ECharacterState::IdleWalkRun;
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::IdleWalkRun;
+	// return CharacterState == ECharacterState::IdleWalkRun;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsJumping() const
@@ -1649,7 +1650,8 @@ FORCEINLINE bool AEODCharacterBase::IsJumping() const
 
 FORCEINLINE bool AEODCharacterBase::IsDodging() const
 {
-	return CharacterState == ECharacterState::Dodging;
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::Dodging;
+	// return CharacterState == ECharacterState::Dodging;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsDodgingDamage() const
@@ -1659,7 +1661,8 @@ FORCEINLINE bool AEODCharacterBase::IsDodgingDamage() const
 
 FORCEINLINE bool AEODCharacterBase::IsBlocking() const
 {
-	return CharacterState == ECharacterState::Blocking;
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::Blocking;
+	// return CharacterState == ECharacterState::Blocking;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsBlockingDamage() const
@@ -1669,18 +1672,21 @@ FORCEINLINE bool AEODCharacterBase::IsBlockingDamage() const
 
 FORCEINLINE bool AEODCharacterBase::IsCastingSpell() const
 {
-	return CharacterState == ECharacterState::CastingSpell;
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::CastingSpell;
+	// return CharacterState == ECharacterState::CastingSpell;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsNormalAttacking() const
 {
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::Attacking;
 	// return CharacterState == ECharacterState::Attacking && GetCurrentActiveSkillID() != NAME_None;
-	return CharacterState == ECharacterState::Attacking;
+	// return CharacterState == ECharacterState::Attacking;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsUsingAnySkill() const
 {
-	return CharacterState == ECharacterState::UsingActiveSkill && GetCurrentActiveSkillID() != NAME_None;
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::UsingActiveSkill;
+	// return CharacterState == ECharacterState::UsingActiveSkill && GetCurrentActiveSkillID() != NAME_None;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsUsingSkill(FName SkillID) const

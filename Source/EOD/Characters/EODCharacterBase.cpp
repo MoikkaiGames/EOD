@@ -186,6 +186,8 @@ void AEODCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ResetState();
+
 	// Intentional additional call to BindUIDelegates (another in Restart())
 	BindUIDelegates();
 
@@ -826,6 +828,7 @@ bool AEODCharacterBase::Server_SetUseControllerRotationYaw_Validate(bool bNewBoo
 
 void AEODCharacterBase::Server_SetCharacterRotation_Implementation(FRotator NewRotation)
 {
+	SetActorRotation(NewRotation);
 	Multicast_SetCharacterRotation(NewRotation);
 }
 
@@ -897,12 +900,14 @@ void AEODCharacterBase::ResetState()
 	Client_CharacterStateInfo = FCharacterStateInfo();
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 	MoveComp->bUseControllerDesiredRotation = false;
-	bCharacterStateAllowsMovement = false;
-	bCharacterStateAllowsRotation = false;
+	bCharacterStateAllowsMovement = true;
+	bCharacterStateAllowsRotation = true;
 }
 
 void AEODCharacterBase::StartBlockingAttacks()
 {
+	//~ @todo stop normal attack (and/or block after normal attack finishes)
+
 	bGuardActive = true;
 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
@@ -975,6 +980,7 @@ void AEODCharacterBase::UpdateBlockState(float DeltaTime)
 
 void AEODCharacterBase::StartJumping()
 {
+	
 }
 
 void AEODCharacterBase::StopJumping()
@@ -1148,20 +1154,17 @@ void AEODCharacterBase::InitiateRotationToYawFromAxisInput()
 	}
 }
 
+/*
 void AEODCharacterBase::Jump()
 {
-
-
-	/*
 	if (IsGuardActive())
 	{
 		DeactivateGuard();
 	}
-	*/
-
 	// SetCharacterStateAllowsRotation(false);
 	// Super::Jump();
 }
+*/
 
 void AEODCharacterBase::OnPressedForward()
 {
@@ -1367,8 +1370,9 @@ bool AEODCharacterBase::Server_SetBlockMovementDirectionYaw_Validate(float NewYa
 
 void AEODCharacterBase::Multicast_SetCharacterRotation_Implementation(FRotator NewRotation)
 {
-	if (!IsLocallyControlled())
+	// If this character has a controller, it means the multicast is being called either on owner client or server
+	if (!Controller)
 	{
-		SetCharacterRotation(NewRotation);
+		SetActorRotation(NewRotation);
 	}
 }

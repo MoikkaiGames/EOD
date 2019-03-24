@@ -426,7 +426,7 @@ void AEODPlayerController::MakePawnJump()
 {
 	if (IsValid(EODCharacter) && EODCharacter->CanJump())
 	{
-		EODCharacter->Jump();
+		EODCharacter->StartJumping();
 	}
 }
 
