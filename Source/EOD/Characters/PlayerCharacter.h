@@ -76,6 +76,21 @@ public:
 
 	FORCEINLINE USkillsComponent* GetSkillsComponent() const { return SkillsComponent; }
 
+	// --------------------------------------
+	//  Character State and Actions
+	// --------------------------------------
+
+	/**
+	 * Enter jump/fall state
+	 * @param bCalledDuringFall True if this function was called after character started falling (of the ledge). False if character manually initiated the jump.
+	 */
+	virtual void StartJumping(bool bCalledDuringFall = false) override;
+
+	/** Leave jump/fall state */
+	virtual void StopJumping() override;
+
+
+
 private:
 	//~ @note The default skeletal mesh component inherited from ACharacter class will reference the skeletal mesh for player face
 

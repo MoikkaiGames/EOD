@@ -114,6 +114,49 @@ void AEODCharacterBase::Tick(float DeltaTime)
 
 	if (Controller && Controller->IsLocalPlayerController())
 	{
+		bool bIsFalling = GetCharacterMovement() ? GetCharacterMovement()->IsFalling() : false;
+		if (bIsFalling && !IsJumping())
+		{
+			StartJumping(true);
+		}
+		else if (!bIsFalling && IsJumping())
+		{
+			StopJumping();
+		}
+
+		/*
+		if (IsValid(EODPlayerOwner->GetCharacterMovement()) && EODPlayerOwner->GetMovementComponent()->IsFalling())
+		{
+			UAnimMontage* JumpMontage = AnimationReferences->Jump.Get();
+			if (IsValid(JumpMontage) && !Montage_IsPlaying(JumpMontage))
+			{
+				Montage_Play(JumpMontage);
+				if (EODPlayerOwner->GetCharacterState() != ECharacterState::Jumping)
+				{
+					EODPlayerOwner->SetCharacterState(ECharacterState::Jumping);
+				}
+				return;
+			}
+		}
+		else if (IsValid(EODPlayerOwner->GetCharacterMovement()) && !EODPlayerOwner->GetMovementComponent()->IsFalling())
+		{
+			UAnimMontage* JumpMontage = AnimationReferences->Jump.Get();
+			if (IsValid(JumpMontage) && Montage_IsPlaying(JumpMontage))
+			{
+				FName CurrentSection = Montage_GetCurrentSection(JumpMontage);
+				if (CurrentSection != UCharacterLibrary::SectionName_JumpEnd)
+				{
+					Montage_JumpToSection(UCharacterLibrary::SectionName_JumpEnd, JumpMontage);
+				}
+				return;
+			}
+			else
+			{
+				// do nothing
+			}
+		}
+		*/
+
 		bool bCanGuardAgainstAttacks = CanGuardAgainstAttacks();
 		// If character wants to guard but it's guard is not yet active
 		if (bWantsToGuard && !IsBlocking() && bCanGuardAgainstAttacks)
@@ -730,6 +773,10 @@ void AEODCharacterBase::OnRep_CharacterStateInfo(FCharacterStateInfo LastStateIn
 	{
 		StartBlockingAttacks();
 	}
+	else if (Server_CharacterStateInfo.CharacterState == ECharacterState::Jumping)
+	{
+		StartJumping();
+	}
 }
 
 //~ @todo
@@ -933,8 +980,7 @@ void AEODCharacterBase::StartBlockingAttacks()
 	bool bIsLocalPlayerController = Controller && Controller->IsLocalPlayerController();
 	if (bIsLocalPlayerController)
 	{
-		FCharacterStateInfo StateInfo;
-		StateInfo.CharacterState = ECharacterState::Blocking;
+		FCharacterStateInfo StateInfo(ECharacterState::Blocking);
 		Client_CharacterStateInfo = StateInfo;
 		Server_SetCharacterStateInfo(StateInfo);
 	}
@@ -987,23 +1033,64 @@ void AEODCharacterBase::UpdateBlockState(float DeltaTime)
 	}
 }
 
-void AEODCharacterBase::StartJumping()
+void AEODCharacterBase::StartJumping(bool bCalledDuringFall)
 {
-	
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (MoveComp)
+	{
+		MoveComp->bUseControllerDesiredRotation = false;
+	}
+	bCharacterStateAllowsMovement = false;
+	bCharacterStateAllowsRotation = false;
+
+	UAnimMontage* JumpMontage = DefaultAnimations.Jump;
+	PlayAnimMontage(JumpMontage);
+
+	if (Controller && Controller->IsLocalPlayerController())
+	{
+		if (!bCalledDuringFall)
+		{
+			// Trigger actual jump
+			Jump();
+		}
+
+		FCharacterStateInfo StateInfo(ECharacterState::Jumping);
+		Client_CharacterStateInfo = StateInfo;
+		Server_SetCharacterStateInfo(StateInfo);
+	}
+	else
+	{
+		Client_CharacterStateInfo = Server_CharacterStateInfo;
+	}
 }
 
 void AEODCharacterBase::StopJumping()
 {
-}
-
-void AEODCharacterBase::SetCharacterStateInfo(FCharacterStateInfo NewStateInfo)
-{
-	Client_CharacterStateInfo = NewStateInfo;
-	if (Role < ROLE_Authority)
+	UAnimMontage* JumpMontage = DefaultAnimations.Jump;
+	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	if (JumpMontage && AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
 	{
-		Server_SetCharacterStateInfo(NewStateInfo);
+		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(JumpMontage);
+		if (CurrentSection != UCharacterLibrary::SectionName_JumpEnd)
+		{
+			AnimInstance->Montage_JumpToSection(UCharacterLibrary::SectionName_JumpEnd, JumpMontage);
+		}
 	}
 }
+
+/*
+void AEODCharacterBase::SetCharacterStateInfo(FCharacterStateInfo NewStateInfo)
+{
+	if (Client_CharacterStateInfo != NewStateInfo)
+	{
+		Client_CharacterStateInfo = NewStateInfo;
+		if (Role < ROLE_Authority)
+		{
+			Server_SetCharacterStateInfo(NewStateInfo);
+		}
+	}
+}
+*/
 
 void AEODCharacterBase::EnableCharacterGuard()
 {

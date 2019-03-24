@@ -248,7 +248,8 @@ bool APlayerCharacter::CanMove() const
 
 bool APlayerCharacter::CanJump() const
 {
-	return IsIdleOrMoving() || IsBlocking() || IsAutoRunning();
+	return IsIdleOrMoving() || IsBlocking();
+	// return IsIdleOrMoving() || IsBlocking() || IsAutoRunning();
 }
 
 bool APlayerCharacter::CanDodge() const
@@ -854,9 +855,7 @@ void APlayerCharacter::StartDodge()
 			MoveComp->SetDesiredCustomRotation(DesiredRotation);
 		}
 		
-		FCharacterStateInfo StateInfo;
-		StateInfo.CharacterState = ECharacterState::Dodging;
-		StateInfo.SubStateIndex = 0;
+		FCharacterStateInfo StateInfo(ECharacterState::Dodging);
 
 		FName SectionToPlay;
 		if (ForwardAxisValue == 0)
@@ -1516,6 +1515,54 @@ void APlayerCharacter::SaveCharacterState()
 	}
 }
 
+void APlayerCharacter::StartJumping(bool bCalledDuringFall)
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (MoveComp)
+	{
+		MoveComp->bUseControllerDesiredRotation = false;
+	}
+	bCharacterStateAllowsMovement = false;
+	bCharacterStateAllowsRotation = false;
+
+	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
+	UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
+	PlayAnimMontage(JumpMontage);
+
+	if (Controller && Controller->IsLocalPlayerController())
+	{
+		if (!bCalledDuringFall)
+		{
+			// Trigger actual jump
+			Jump();
+		}
+
+		FCharacterStateInfo StateInfo(ECharacterState::Jumping);
+		Client_CharacterStateInfo = StateInfo;
+		Server_SetCharacterStateInfo(StateInfo);
+	}
+	else
+	{
+		Client_CharacterStateInfo = Server_CharacterStateInfo;
+	}
+}
+
+void APlayerCharacter::StopJumping()
+{
+	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
+	UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
+
+	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	if (JumpMontage && AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
+	{
+		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(JumpMontage);
+		if (CurrentSection != UCharacterLibrary::SectionName_JumpEnd)
+		{
+			AnimInstance->Montage_JumpToSection(UCharacterLibrary::SectionName_JumpEnd, JumpMontage);
+		}
+	}
+}
+
 FName APlayerCharacter::GetNextNormalAttackSectionName(const FName& CurrentSection) const
 {
 	if (CurrentSection == UCharacterLibrary::SectionName_FirstSwing ||
@@ -2104,7 +2151,23 @@ void APlayerCharacter::OnMontageBlendingOut(UAnimMontage* AnimMontage, bool bInt
 			FinishDodge();
 		}
 	}
+	else if (Client_CharacterStateInfo.CharacterState == ECharacterState::Jumping)
+	{
+		//~ For some weird reason - montage blending out events get called during section change in UE 4.22.
+		//  Following code just makes sure that the montage blending out event wasn't called during section change.
 
+		UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+		FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
+		UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
+
+		bool bMontageValid = JumpMontage && JumpMontage == AnimMontage;
+		bool bMontageStopped = AnimInstance && JumpMontage ? AnimInstance->Montage_GetIsStopped(JumpMontage) : true;
+
+		if (JumpMontage && JumpMontage == AnimMontage && AnimInstance && AnimInstance->Montage_GetIsStopped(JumpMontage))
+		{
+			ResetState();
+		}
+	}
 
 
 

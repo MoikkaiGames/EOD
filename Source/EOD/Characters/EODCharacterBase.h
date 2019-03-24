@@ -85,6 +85,13 @@ struct EOD_API FCharacterStateInfo
 		SubStateIndex = 0;
 	}
 
+	FCharacterStateInfo(ECharacterState State, uint8 SSIndex) : CharacterState(State), SubStateIndex(SSIndex) { ; }
+
+	FCharacterStateInfo(ECharacterState State) : CharacterState(State)
+	{
+		SubStateIndex = 0;
+	}
+
 	bool operator==(const FCharacterStateInfo& OtherStateInfo)
 	{
 		return this->CharacterState == OtherStateInfo.CharacterState && this->SubStateIndex == OtherStateInfo.SubStateIndex;
@@ -144,7 +151,7 @@ public:
 	virtual void Restart() override;
 
 	// --------------------------------------
-	//  Character State
+	//  Character State and Actions
 	// --------------------------------------
 
 	/** Character state info on server */
@@ -207,8 +214,11 @@ public:
 	/** Returns true if character can jump */
 	virtual bool CanJump() const;
 
-	/** Enter jump/fall state */
-	virtual void StartJumping();
+	/** 
+	 * Enter jump/fall state
+	 * @param bCalledDuringFall True if this function was called after character started falling (of the ledge). False if character manually initiated the jump.
+	 */
+	virtual void StartJumping(bool bCalledDuringFall = false);
 
 	/** Leave jump/fall state */
 	virtual void StopJumping();
@@ -220,7 +230,7 @@ public:
 	virtual void StopNormalAttack();
 
 	/** [server + client] Set and replicate character state info over network */
-	void SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
+	// void SetCharacterStateInfo(FCharacterStateInfo NewStateInfo);
 
 	/** Sets whether character wants to guard or not */
 	FORCEINLINE void SetWantsToGuard(bool bValue) { bWantsToGuard = bValue; }
@@ -1661,7 +1671,8 @@ FORCEINLINE bool AEODCharacterBase::IsIdleOrMoving() const
 
 FORCEINLINE bool AEODCharacterBase::IsJumping() const
 {
-	return CharacterState == ECharacterState::Jumping;
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::Jumping;
+	// return CharacterState == ECharacterState::Jumping;
 }
 
 FORCEINLINE bool AEODCharacterBase::IsDodging() const

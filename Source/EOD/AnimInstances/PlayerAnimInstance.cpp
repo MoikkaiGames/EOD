@@ -56,6 +56,7 @@ void UPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 
 #if EOD_TEST_CODE_ENABLED
+	/*
 	if (IsValid(EODPlayerOwner->GetCharacterMovement()) && EODPlayerOwner->GetMovementComponent()->IsFalling())
 	{
 		UAnimMontage* JumpMontage = AnimationReferences->Jump.Get();
@@ -86,6 +87,7 @@ void UPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 			// do nothing
 		}
 	}
+	*/
 
 	if (EODPlayerOwner->IsSwitchingWeapon())
 	{
