@@ -887,6 +887,8 @@ void APlayerCharacter::StartDodge()
 
 		Client_CharacterStateInfo = StateInfo;
 		Server_SetCharacterStateInfo(StateInfo);
+		FString RealValue = FString("RealValue: ") + StateInfo.ToString();
+		PrintToScreen(this, RealValue, 10.f);
 	}
 	else
 	{
@@ -1527,7 +1529,15 @@ void APlayerCharacter::StartJumping(bool bCalledDuringFall)
 
 	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
 	UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
-	PlayAnimMontage(JumpMontage);
+
+	UAnimInstance* AnimInst = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	if (AnimInst)
+	{
+		AnimInst->Montage_Play(JumpMontage);
+	}
+
+	// PlayAnimMontage(JumpMontage, 1.f, UCharacterLibrary::SectionName_JumpStart);
+	// PlayAnimMontage(JumpMontage);
 
 	if (Controller && Controller->IsLocalPlayerController())
 	{
@@ -1539,7 +1549,7 @@ void APlayerCharacter::StartJumping(bool bCalledDuringFall)
 
 		FCharacterStateInfo StateInfo(ECharacterState::Jumping);
 		Client_CharacterStateInfo = StateInfo;
-		Server_SetCharacterStateInfo(StateInfo);
+		// Server_SetCharacterStateInfo(StateInfo);
 	}
 	else
 	{
@@ -1549,17 +1559,29 @@ void APlayerCharacter::StartJumping(bool bCalledDuringFall)
 
 void APlayerCharacter::StopJumping()
 {
+	if (Client_CharacterStateInfo.SubStateIndex == 1)
+	{
+		return;
+	}
+
 	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
 	UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
 
 	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	// If the jump montage is currently playing
 	if (JumpMontage && AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
 	{
 		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(JumpMontage);
 		if (CurrentSection != UCharacterLibrary::SectionName_JumpEnd)
 		{
 			AnimInstance->Montage_JumpToSection(UCharacterLibrary::SectionName_JumpEnd, JumpMontage);
+			Client_CharacterStateInfo.SubStateIndex = 1;
 		}
+	}
+	// If the jump montage isn't even playing
+	else
+	{
+		ResetState();
 	}
 }
 
@@ -2142,7 +2164,7 @@ void APlayerCharacter::OnMontageBlendingOut(UAnimMontage* AnimMontage, bool bInt
 	 * so that we can be sure that the montage blend out wasn't triggered by a state change.
 	 */
 	
-	if (Client_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
+ 	if (Client_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
 	{
 		FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
 		UAnimMontage* DodgeMontage = AnimRef ? AnimRef->Dodge.Get() : nullptr;
@@ -2156,16 +2178,24 @@ void APlayerCharacter::OnMontageBlendingOut(UAnimMontage* AnimMontage, bool bInt
 		//~ For some weird reason - montage blending out events get called during section change in UE 4.22.
 		//  Following code just makes sure that the montage blending out event wasn't called during section change.
 
-		UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
-		FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
-		UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
-
-		bool bMontageValid = JumpMontage && JumpMontage == AnimMontage;
-		bool bMontageStopped = AnimInstance && JumpMontage ? AnimInstance->Montage_GetIsStopped(JumpMontage) : true;
-
-		if (JumpMontage && JumpMontage == AnimMontage && AnimInstance && AnimInstance->Montage_GetIsStopped(JumpMontage))
+		if (Client_CharacterStateInfo.SubStateIndex == 1)
 		{
-			ResetState();
+			FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
+			UAnimMontage* JumpMontage = AnimRef ? AnimRef->Jump.Get() : nullptr;
+			if (JumpMontage && JumpMontage == AnimMontage)
+			{
+				ResetState();
+			}
+
+			/*
+			UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+
+			if (JumpMontage && JumpMontage == AnimMontage && AnimInstance && AnimInstance->Montage_GetIsStopped(JumpMontage))
+			{
+				ResetState();
+			}
+			*/
+			
 		}
 	}
 

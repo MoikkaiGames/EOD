@@ -73,11 +73,12 @@ struct EOD_API FCharacterStateInfo
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	ECharacterState CharacterState;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	uint8 SubStateIndex;
+	// int32 SubStateIndex;
 
 	FCharacterStateInfo()
 	{
@@ -106,6 +107,12 @@ struct EOD_API FCharacterStateInfo
 	{
 		this->CharacterState = OtherStateInfo.CharacterState;
 		this->SubStateIndex = OtherStateInfo.SubStateIndex;
+	}
+
+	FString ToString() const
+	{
+		FString String = FString("Character State: ") + EnumToString<ECharacterState>(FString("ECharacterState"), CharacterState, FString("Invalid Class")) + FString(", SubStateIndex: ") + FString::FromInt(SubStateIndex);
+		return String;
 	}
 };
 
@@ -159,7 +166,7 @@ public:
 	FCharacterStateInfo Server_CharacterStateInfo;
 
 	/** Character state info on local client */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	FCharacterStateInfo Client_CharacterStateInfo;
 
 	/** Determines whether the local state is yet to change to match server state */

@@ -115,11 +115,13 @@ void AEODCharacterBase::Tick(float DeltaTime)
 	if (Controller && Controller->IsLocalPlayerController())
 	{
 		bool bIsFalling = GetCharacterMovement() ? GetCharacterMovement()->IsFalling() : false;
-		if (bIsFalling && !IsJumping())
+
+		if (bIsFalling)
 		{
-			StartJumping(true);
+			// PrintToScreen(this, FString("Is falling"), 10.f);
 		}
-		else if (!bIsFalling && IsJumping())
+
+		if (!bIsFalling && IsJumping())
 		{
 			StopJumping();
 		}
@@ -788,6 +790,7 @@ void AEODCharacterBase::Server_SetCharacterStateInfo_Implementation(FCharacterSt
 {
 	FCharacterStateInfo OldStateInfo = Server_CharacterStateInfo;
 	Server_CharacterStateInfo = NewStateInfo;
+	PrintToScreen(this, NewStateInfo.ToString(), 10.f);
 	if (Controller && Controller->IsLocalPlayerController())
 	{
 		return;
@@ -1044,7 +1047,7 @@ void AEODCharacterBase::StartJumping(bool bCalledDuringFall)
 	bCharacterStateAllowsRotation = false;
 
 	UAnimMontage* JumpMontage = DefaultAnimations.Jump;
-	PlayAnimMontage(JumpMontage);
+	PlayAnimMontage(JumpMontage, 1.f, UCharacterLibrary::SectionName_JumpStart);
 
 	if (Controller && Controller->IsLocalPlayerController())
 	{
@@ -1066,15 +1069,27 @@ void AEODCharacterBase::StartJumping(bool bCalledDuringFall)
 
 void AEODCharacterBase::StopJumping()
 {
+	if (Client_CharacterStateInfo.SubStateIndex == 1)
+	{
+		return;
+	}
+
 	UAnimMontage* JumpMontage = DefaultAnimations.Jump;
 	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+	// If the jump montage is currently playing
 	if (JumpMontage && AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
 	{
 		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(JumpMontage);
 		if (CurrentSection != UCharacterLibrary::SectionName_JumpEnd)
 		{
 			AnimInstance->Montage_JumpToSection(UCharacterLibrary::SectionName_JumpEnd, JumpMontage);
+			Client_CharacterStateInfo.SubStateIndex = 1;
 		}
+	}
+	// If the jump montage isn't even playing
+	else
+	{
+		ResetState();
 	}
 }
 
@@ -1192,8 +1207,8 @@ void AEODCharacterBase::UpdateMovement(float DeltaTime)
 
 void AEODCharacterBase::UpdateFallState(float DeltaTime)
 {
-	SetCharacterStateAllowsMovement(false);
-	SetCharacterStateAllowsRotation(false);
+	// SetCharacterStateAllowsMovement(false);
+	// SetCharacterStateAllowsRotation(false);
 }
 
 void AEODCharacterBase::TriggerInteraction()
