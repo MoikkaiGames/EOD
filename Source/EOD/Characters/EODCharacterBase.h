@@ -9,7 +9,7 @@
 #include "EOD/Statics/CharacterLibrary.h"
 #include "EOD/StatusEffects/StatusEffectBase.h"
 #include "EOD/Characters/Components/StatsComponentBase.h"
-
+#include "GenericPlatform/GenericPlatformTime.h"
 #include "GameplayTagContainer.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SphereComponent.h"
@@ -78,40 +78,69 @@ struct EOD_API FCharacterStateInfo
 
 	UPROPERTY(BlueprintReadOnly)
 	uint8 SubStateIndex;
-	// int32 SubStateIndex;
+
+	UPROPERTY(BlueprintReadOnly)
+	float TimeStamp;
+
+	bool IsValid() const
+	{
+		return (TimeStamp > 0.f);
+	}
 
 	FCharacterStateInfo()
 	{
 		CharacterState = ECharacterState::IdleWalkRun;
 		SubStateIndex = 0;
+		TimeStamp = 0.f;
 	}
-
-	FCharacterStateInfo(ECharacterState State, uint8 SSIndex) : CharacterState(State), SubStateIndex(SSIndex) { ; }
 
 	FCharacterStateInfo(ECharacterState State) : CharacterState(State)
 	{
 		SubStateIndex = 0;
+		TimeStamp = 0.f;
+	}
+
+	FCharacterStateInfo(float Time) : TimeStamp(Time)
+	{
+		CharacterState = ECharacterState::IdleWalkRun;
+		SubStateIndex = 0;
+	}
+
+	FCharacterStateInfo(ECharacterState State, uint8 SSIndex) : CharacterState(State), SubStateIndex(SSIndex)
+	{
+		TimeStamp = 0.f;
+	}
+
+	FCharacterStateInfo(ECharacterState State, uint8 SSIndex, float Time) : CharacterState(State), SubStateIndex(SSIndex), TimeStamp(Time)
+	{
 	}
 
 	bool operator==(const FCharacterStateInfo& OtherStateInfo)
 	{
-		return this->CharacterState == OtherStateInfo.CharacterState && this->SubStateIndex == OtherStateInfo.SubStateIndex;
+		return this->CharacterState == OtherStateInfo.CharacterState &&
+			this->SubStateIndex == OtherStateInfo.SubStateIndex &&
+			FMath::IsNearlyEqual(this->TimeStamp, OtherStateInfo.TimeStamp);
 	}
 
 	bool operator!=(const FCharacterStateInfo& OtherStateInfo)
 	{
-		return this->CharacterState != OtherStateInfo.CharacterState || this->SubStateIndex != OtherStateInfo.SubStateIndex;
+		return this->CharacterState != OtherStateInfo.CharacterState ||
+			this->SubStateIndex != OtherStateInfo.SubStateIndex ||
+			!FMath::IsNearlyEqual(this->TimeStamp, OtherStateInfo.TimeStamp);
 	}
 
 	void operator=(const FCharacterStateInfo& OtherStateInfo)
 	{
 		this->CharacterState = OtherStateInfo.CharacterState;
 		this->SubStateIndex = OtherStateInfo.SubStateIndex;
+		this->TimeStamp = OtherStateInfo.TimeStamp;
 	}
 
 	FString ToString() const
 	{
-		FString String = FString("Character State: ") + EnumToString<ECharacterState>(FString("ECharacterState"), CharacterState, FString("Invalid Class")) + FString(", SubStateIndex: ") + FString::FromInt(SubStateIndex);
+		FString String = FString("Character State: ") + EnumToString<ECharacterState>(FString("ECharacterState"), CharacterState, FString("Invalid Class")) +
+			FString(", SubStateIndex: ") + FString::FromInt(SubStateIndex) +
+			FString(", TimeStamp: ") + FString::SanitizeFloat(TimeStamp);
 		return String;
 	}
 };
@@ -173,11 +202,19 @@ public:
 	UPROPERTY()
 	uint32 bPendingLocalStateChange : 1;
 
+	/** Determines whether the server state has been reset. Only relevant on server */
+	UPROPERTY()
+	uint32 bServerStateReset : 1;
+
 	/** A list of all the states that the character must transition through locally to match the server state */
 	TQueue<FCharacterStateInfo> PendingStates;
 
 	/** Reset character state : usually sets state variables to default values and puts character in IdleWalkRun state */
 	virtual void ResetState();
+
+	virtual void ResetLocalState();
+
+	void ResetServerState();
 
 	/** Determines if the character is in dodge state. Used to trigger dodge animation */
 	FORCEINLINE bool IsDodging() const;
@@ -189,12 +226,15 @@ public:
 	virtual bool CanDodge() const;
 
 	/** Start dodging */
+	UFUNCTION()
 	virtual void StartDodge();
 
 	/** Cancel dodging */
+	UFUNCTION()
 	virtual void CancelDodge();
 
 	/** Finish dodging */
+	UFUNCTION()
 	virtual void FinishDodge();
 
 	/**
@@ -246,6 +286,10 @@ public:
 
 protected:
 
+	FTimerHandle DodgeImmunityTimerHandle;
+
+	FTimerHandle DodgeTimerHandle;
+
 	/** Determines whether the character wants to guard right now */
 	UPROPERTY(Transient)
 	uint32 bWantsToGuard : 1;
@@ -265,6 +309,8 @@ protected:
 
 	/** Updates character normal attck state every frame if the character wants to normal attack */
 	virtual void UpdateNormalAttackState(float DeltaTime);
+
+	virtual void TransitionBetweenLocalStates(const FCharacterStateInfo& NewState, const FCharacterStateInfo& OldState);
 
 public:
 
@@ -652,7 +698,7 @@ protected:
 	/** Updates character guard state every frame if the character wants to guard */
 	virtual void UpdateGuardState(float DeltaTime);
 
-
+	virtual void UpdateLocalCharacter(float DeltaTime);
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Ride System
@@ -1296,8 +1342,6 @@ protected:
 
 	FTimerHandle TargetSwitchTimerHandle;
 
-	FTimerHandle DodgeImmunityTimerHandle;
-
 	FTimerHandle BlockTimerHandle;
 
 	FTimerHandle CrowdControlTimerHandle;
@@ -1317,7 +1361,6 @@ protected:
 	UFUNCTION()
 	void OnRep_CharacterStateInfo(FCharacterStateInfo LastStateInfo);
 
-
 	UFUNCTION()
 	void OnRep_ServerCharacterState(ECharacterState LastState);
 
@@ -1327,6 +1370,17 @@ protected:
 	UFUNCTION()
 	void OnRep_GuardActive();
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_Dodge(uint8 DodgeIndex, float RotationYaw);
+
+	virtual void Server_Dodge_Implementation(uint8 DodgeIndex, float RotationYaw);
+
+	virtual bool Server_Dodge_Validate(uint8 DodgeIndex, float RotationYaw);
+
+	UFUNCTION(NetMultiCast, Reliable)
+	void Multicast_Dodge(uint8 DodgeIndex, float RotationYaw);
+
+	virtual void Multicast_Dodge_Implementation(uint8 DodgeIndex, float RotationYaw);
 
 	// UFUNCTION()
 	// void OnRep_CurrentRide(ARideBase* OldRide);
@@ -1662,12 +1716,14 @@ FORCEINLINE bool AEODCharacterBase::IsDead() const
 
 FORCEINLINE bool AEODCharacterBase::IsIdle() const
 {
-	return (CharacterState == ECharacterState::IdleWalkRun && GetVelocity().Size() == 0);
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::IdleWalkRun && GetVelocity().Size() == 0;
+	// return (CharacterState == ECharacterState::IdleWalkRun && GetVelocity().Size() == 0);
 }
 
 FORCEINLINE bool AEODCharacterBase::IsMoving() const
 {
-	return (CharacterState == ECharacterState::IdleWalkRun && GetVelocity().Size() != 0);
+	return Client_CharacterStateInfo.CharacterState == ECharacterState::IdleWalkRun && GetVelocity().Size() != 0;
+	// return (CharacterState == ECharacterState::IdleWalkRun && GetVelocity().Size() != 0);
 }
 
 FORCEINLINE bool AEODCharacterBase::IsIdleOrMoving() const

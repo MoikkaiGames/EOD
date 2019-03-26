@@ -121,18 +121,6 @@ void APlayerCharacter::PostInitializeComponents()
 
 }
 
-void APlayerCharacter::PostInitProperties()
-{
-	Super::PostInitProperties();
-}
-
-#if WITH_EDITOR
-void APlayerCharacter::PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-#endif
-
 void APlayerCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -207,22 +195,6 @@ void APlayerCharacter::Tick(float DeltaTime)
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// SetMasterPoseComponentForMeshes();
-
-	/*
-	if (Controller && Controller->IsLocalPlayerController() && HUDWidgetClass.Get())
-	{
-		if (HUDWidgetClass.Get())
-		{
-			HUDWidget = CreateWidget<UHUDWidget>(GetGameInstance(), HUDWidgetClass);
-			if (HUDWidget)
-			{
-				HUDWidget->AddToViewport();
-			}
-		}
-	}
-	*/
 }
 
 USkeletalMeshComponent* APlayerCharacter::CreateNewArmorComponent(const FName Name, const FObjectInitializer& ObjectInitializer)
@@ -249,7 +221,6 @@ bool APlayerCharacter::CanMove() const
 bool APlayerCharacter::CanJump() const
 {
 	return IsIdleOrMoving() || IsBlocking();
-	// return IsIdleOrMoving() || IsBlocking() || IsAutoRunning();
 }
 
 bool APlayerCharacter::CanDodge() const
@@ -820,15 +791,119 @@ void APlayerCharacter::SetActiveWeaponSlotIndex(int32 NewSlotIndex)
 
 void APlayerCharacter::StartDodge()
 {
-	if (IsBlocking())
-	{
-		StopBlockingAttacks();
-	}
-
-
 	FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
 	UAnimMontage* DodgeMontage = AnimRef ? AnimRef->Dodge.Get() : nullptr;
 	check(DodgeMontage);
+
+	UWorld* World = GetWorld();
+	check(World);
+
+	bool bIsLocalPlayerController = Controller && Controller->IsLocalPlayerController();
+	if (bIsLocalPlayerController)
+	{
+		PrintToScreen(this, FString("local controller"), 10.f);
+		FCharacterStateInfo StateInfo(ECharacterState::Dodging, 0, World->GetTimeSeconds());
+		if (ForwardAxisValue == 0)
+		{
+			if (RightAxisValue > 0)
+			{
+				StateInfo.SubStateIndex = 3;
+			}
+			else if (RightAxisValue < 0)
+			{
+				StateInfo.SubStateIndex = 2;
+			}
+			else
+			{
+				StateInfo.SubStateIndex = 1;
+			}
+		}
+		else
+		{
+			if (ForwardAxisValue > 0)
+			{
+				StateInfo.SubStateIndex = 0;
+			}
+			else if (ForwardAxisValue < 0)
+			{
+				StateInfo.SubStateIndex = 1;
+			}
+		}
+
+		TransitionBetweenLocalStates(StateInfo, Client_CharacterStateInfo);
+		Server_SetCharacterStateInfo(StateInfo);
+
+		float DesiredYaw = GetControllerRotationYaw();
+		if (ForwardAxisValue != 0)
+		{
+			DesiredYaw = GetRotationYawFromAxisInput();
+		}
+
+		FRotator DesiredRotation = FRotator(0.f, DesiredYaw, 0.f);
+
+		// Instantly rotate character
+		SetCharacterRotation(DesiredRotation);
+		// Update desired rotation yaw in movement component so it doesn't try to rotate back to original rotation yaw
+		UEODCharacterMovementComponent* MoveComp = Cast<UEODCharacterMovementComponent>(GetCharacterMovement());
+		if (MoveComp)
+		{
+			MoveComp->SetDesiredCustomRotation(DesiredRotation);
+		}
+	}
+	else
+	{
+		TransitionBetweenLocalStates(Server_CharacterStateInfo, Client_CharacterStateInfo);
+	}
+
+	// SubStateIndex
+	// 0 = Forward Dodge
+	// 1 = Backward Dodge
+	// 2 = Left Dodge
+	// 3 = Right Dodge
+
+	FName SectionToPlay = NAME_None;
+	if (Client_CharacterStateInfo.SubStateIndex == 0)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_ForwardDodge;
+	}
+	else if (Client_CharacterStateInfo.SubStateIndex == 1)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_BackwardDodge;
+	}
+	else if (Client_CharacterStateInfo.SubStateIndex == 2)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_LeftDodge;
+	}
+	else if (Client_CharacterStateInfo.SubStateIndex == 3)
+	{
+		SectionToPlay = UCharacterLibrary::SectionName_RightDodge;
+	}
+
+	float MontageDuration = PlayAnimMontage(DodgeMontage, 1.f, SectionToPlay);
+
+	// The total duration of dodge montage is 4 times the dodge animation duration since it includes dodge animations for all 4 directions (left, right, forward, backward)
+	float ActualDuration = (MontageDuration / 4) - DodgeMontage->GetDefaultBlendOutTime();
+
+	FTimerDelegate TimerDelegate;
+	TimerDelegate.BindUObject(this, &AEODCharacterBase::FinishDodge);
+	World->GetTimerManager().SetTimer(DodgeTimerHandle, TimerDelegate, ActualDuration, false);
+
+	if (GetNetMode() != ENetMode::NM_Client)
+	{
+		TriggeriFrames(DodgeImmunityDuration, DodgeImmunityTriggerDelay);
+	}
+
+
+
+
+
+	/*
+	if (IsBlocking())
+	{
+		// StopBlockingAttacks();
+	}
+
+
 
 	bUseControllerRotationYaw = false;
 	bCharacterStateAllowsMovement = false;
@@ -919,17 +994,31 @@ void APlayerCharacter::StartDodge()
 		SectionToPlay = UCharacterLibrary::SectionName_RightDodge;
 	}
 
-	PlayAnimMontage(DodgeMontage, 1.f, SectionToPlay);
+	float Duration = PlayAnimMontage(DodgeMontage, 1.f, SectionToPlay);
+	FString Mes = FString("Duration: ") + FString::SanitizeFloat(Duration);
+	PrintToScreen(this, Mes, 10.f);
 
 	if (GetNetMode() != ENetMode::NM_Client)
 	{
 		TriggeriFrames(DodgeImmunityDuration, DodgeImmunityTriggerDelay);
 	}
+	*/
 }
 
 void APlayerCharacter::FinishDodge()
 {
-	ResetState();
+	// ResetState();
+	ResetLocalState();
+
+	if (GetNetMode() == ENetMode::NM_Client)
+	{
+		return;
+	}
+
+	if (Server_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
+	{
+		ResetServerState();
+	}
 }
 
 void APlayerCharacter::OnDodge()
@@ -2164,6 +2253,7 @@ void APlayerCharacter::OnMontageBlendingOut(UAnimMontage* AnimMontage, bool bInt
 	 * so that we can be sure that the montage blend out wasn't triggered by a state change.
 	 */
 	
+	/*
  	if (Client_CharacterStateInfo.CharacterState == ECharacterState::Dodging)
 	{
 		FPlayerAnimationReferencesTableRow* AnimRef = GetActiveAnimationReferences();
@@ -2194,10 +2284,11 @@ void APlayerCharacter::OnMontageBlendingOut(UAnimMontage* AnimMontage, bool bInt
 			{
 				ResetState();
 			}
-			*/
+			////
 			
 		}
 	}
+	*/
 
 
 

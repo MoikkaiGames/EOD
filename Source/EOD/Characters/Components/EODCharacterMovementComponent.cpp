@@ -48,10 +48,16 @@ void UEODCharacterMovementComponent::PhysicsRotation(float DeltaTime)
 	{
 		DesiredRotation = CharacterOwner->Controller->GetDesiredRotation();
 	}
+	else if (CharacterOwner->Controller)
+	{
+		DesiredRotation = DesiredCustomRotation;
+	}
+	/*
 	else
 	{
 		DesiredRotation = DesiredCustomRotation;
 	}
+	*/
 
 	if (ShouldRemainVertical())
 	{

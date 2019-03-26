@@ -238,6 +238,7 @@ void AEODCharacterBase::BeginPlay()
 	Super::BeginPlay();
 
 	ResetState();
+	ResetServerState();
 
 	// Intentional additional call to BindUIDelegates (another in Restart())
 	BindUIDelegates();
@@ -749,6 +750,19 @@ void AEODCharacterBase::OnRep_GuardActive()
 	*/
 }
 
+void AEODCharacterBase::Server_Dodge_Implementation(uint8 DodgeIndex, float RotationYaw)
+{
+}
+
+bool AEODCharacterBase::Server_Dodge_Validate(uint8 DodgeIndex, float RotationYaw)
+{
+	return true;
+}
+
+void AEODCharacterBase::Multicast_Dodge_Implementation(uint8 DodgeIndex, float RotationYaw)
+{
+}
+
 void AEODCharacterBase::OnRep_CharacterStateInfo(FCharacterStateInfo LastStateInfo)
 {
 	// If the replicated character state info is already same as local state info then the client should be the owner
@@ -888,7 +902,7 @@ bool AEODCharacterBase::Server_SetUseControllerRotationYaw_Validate(bool bNewBoo
 void AEODCharacterBase::Server_SetCharacterRotation_Implementation(FRotator NewRotation)
 {
 	SetActorRotation(NewRotation);
-	Multicast_SetCharacterRotation(NewRotation);
+	// Multicast_SetCharacterRotation(NewRotation);
 }
 
 bool AEODCharacterBase::Server_SetCharacterRotation_Validate(FRotator NewRotation)
@@ -963,6 +977,33 @@ void AEODCharacterBase::ResetState()
 	bCharacterStateAllowsRotation = true;
 }
 
+void AEODCharacterBase::ResetLocalState()
+{
+	UWorld* World = GetWorld();
+	check(World);
+
+	Client_CharacterStateInfo = FCharacterStateInfo(World->GetTimeSeconds());
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	check(MoveComp);
+	MoveComp->bUseControllerDesiredRotation = false;
+	bCharacterStateAllowsMovement = true;
+	bCharacterStateAllowsRotation = true;
+
+}
+
+void AEODCharacterBase::ResetServerState()
+{
+	if (GetNetMode() == ENetMode::NM_Client)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	check(World);
+	Server_CharacterStateInfo = FCharacterStateInfo(World->GetTimeSeconds());
+	bServerStateReset = true;
+}
+
 void AEODCharacterBase::StartBlockingAttacks()
 {
 	//~ @todo stop normal attack (and/or block after normal attack finishes)
@@ -995,18 +1036,20 @@ void AEODCharacterBase::StartBlockingAttacks()
 
 void AEODCharacterBase::StopBlockingAttacks()
 {
-	// bGuardActive = false;
-
 	if (GetNetMode() != ENetMode::NM_Client)
 	{
 		StopBlockingDamage();
 	}
 
+	ResetLocalState();
+
+	/*
 	if (Controller && Controller->IsLocalController())
 	{
-		ResetState();
+		// ResetState();
 		Server_SetCharacterStateInfo(FCharacterStateInfo());
 	}
+	*/
 }
 
 void AEODCharacterBase::UpdateBlockState(float DeltaTime)
@@ -1076,6 +1119,11 @@ void AEODCharacterBase::StopJumping()
 
 	UAnimMontage* JumpMontage = DefaultAnimations.Jump;
 	UAnimInstance* AnimInstance = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr;
+
+	// AnimInstance->
+	// JumpMontage->GetSectionLength()
+	// JumpMontage->GetSectionIndex()
+
 	// If the jump montage is currently playing
 	if (JumpMontage && AnimInstance && AnimInstance->Montage_IsPlaying(JumpMontage))
 	{
@@ -1252,6 +1300,16 @@ void AEODCharacterBase::UpdateNormalAttackState(float DeltaTime)
 {
 }
 
+void AEODCharacterBase::TransitionBetweenLocalStates(const FCharacterStateInfo& NewState, const FCharacterStateInfo& OldState)
+{
+	if (OldState.CharacterState == ECharacterState::Blocking)
+	{
+		StopBlockingAttacks();
+	}
+
+	Client_CharacterStateInfo = NewState;
+}
+
 void AEODCharacterBase::PlayToggleSheatheAnimation()
 {
 }
@@ -1411,6 +1469,10 @@ void AEODCharacterBase::UpdateGuardState(float DeltaTime)
 			}
 		}
 	}
+}
+
+void AEODCharacterBase::UpdateLocalCharacter(float DeltaTime)
+{
 }
 
 void AEODCharacterBase::Server_SetIsRunning_Implementation(bool bValue)

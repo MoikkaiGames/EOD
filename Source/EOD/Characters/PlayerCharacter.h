@@ -42,6 +42,11 @@ class EOD_API APlayerCharacter : public AHumanCharacter
 	GENERATED_BODY()
 	
 public:
+
+	// --------------------------------------
+	//  UE4 Method Overrides
+	// --------------------------------------
+
 	/** Create and initialize skeletal armor mesh, camera, and inventory components. */
 	APlayerCharacter(const FObjectInitializer& ObjectInitializer);
 	
@@ -50,17 +55,6 @@ public:
 	
 	/** Spawn default weapon(s) */
 	virtual void PostInitializeComponents() override;
-
-	virtual void PostInitProperties() override;
-
-#if WITH_EDITOR
-	/**
-	 * Detects changes to EditorArmorID and EditorWeaponID properties.
-	 * If the ID changes, it looks up for respective weapon or armor in
-	 * data tables and adds them to character.
-	 */
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
 	/** Updates player states */
 	virtual void Tick(float DeltaTime) override;
@@ -89,6 +83,11 @@ public:
 	/** Leave jump/fall state */
 	virtual void StopJumping() override;
 
+	/** Start dodging */
+	virtual void StartDodge() override;
+
+	/** Finish dodging */
+	virtual void FinishDodge() override;
 
 
 private:
@@ -562,11 +561,6 @@ public:
 	int32 MaxWeaponSlots;
 
 	void SetActiveWeaponSlotIndex(int32 NewSlotIndex);
-
-	virtual void StartDodge() override;
-
-	/** Finish dodging */
-	virtual void FinishDodge() override;
 
 private:
 
