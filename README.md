@@ -1,3 +1,3 @@
 # Embers Of Darkness
 
-This project is currently WIP.
+This repository has been moved to a new [lfs-free repoistory](https://github.com/rahulshekhawat/DRaiderZ)
